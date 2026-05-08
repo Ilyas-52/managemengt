@@ -472,13 +472,23 @@ export default function ManagerTerminal() {
                             </button>
                             {showHamzaSub && (
                                 <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-2">
-                                    {['البرنامج', 'التتبع', 'السيارة', 'الصندوق', 'الامتحانات'].map(id => (
+                                    {/* ✅ المسمار المصحح: توحيد الـ IDs مع الـ Desktop */}
+                                    {[
+                                        { id: 'emploi', label: '📅 البرنامج' },
+                                        { id: 'suivi', label: '✅ التتبع' },
+                                        { id: 'vehicule', label: '🚗 السيارة' },
+                                        { id: 'cash', label: '💰 الصندوق' },
+                                        { id: 'exams', label: '🎓 الامتحانات' }
+                                    ].map(item => (
                                         <button
-                                            key={id}
-                                            onClick={() => { setActiveSubTab(id); setIsSidebarOpen(false); }}
+                                            key={item.id}
+                                            onClick={() => {
+                                                setActiveSubTab(item.id); // صيفط 'emploi' ماشي 'البرنامج'
+                                                setIsSidebarOpen(false);
+                                            }}
                                             className="text-right py-2 text-[11px] font-black capitalize"
                                         >
-                                            {id}
+                                            {item.label}
                                         </button>
                                     ))}
                                     {selectedAgency?.name === 'Boudinar' && <button onClick={() => { setActiveSubTab('gprs'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">🛰️ GPRS</button>}
