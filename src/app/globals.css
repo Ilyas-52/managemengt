@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #F4F7F6;
+  --foreground: #111827;
+}
+
+/* -------------------------------------------------- */
+/* 🛠️ الـ Base Styles: الساس المسمّر */
+/* -------------------------------------------------- */
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden !important;
+  position: relative;
+  /* 🚫 منع الـ Zoom التلقائي اللي كيخربق الحسابات */
+  touch-action: pan-x pan-y;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 🚀 سكرول رقيق */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* -------------------------------------------------- */
+/* 🛠️ الضربة القاضية لـ "غميضة" السميات (Sticky Fix) */
+/* -------------------------------------------------- */
+
+/* 1️⃣ ركل الجدول باش يحترم الـ Sticky */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  /* إجبار المتصفح يرسم الجدول كـ طبقة واحدة ثابتة */
+  isolation: isolate;
+}
+
+/* 2️⃣ "تـسـمـار" السميات فـ كاع الجداول */
+table td.sticky,
+table th.sticky,
+[class*="sticky-right"] {
+  /* 🚀 السّمّار النووي: إجبار الـ GPU يرسم الخانة ديما */
+  -webkit-transform: translate3d(0, 0, 1px) !important;
+  transform: translate3d(0, 0, 1px) !important;
+
+  /* 🛡️ منع المتصفح من أنه "يطفي" الخانة فـ السكرول العمودي */
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+
+  /* 🏎️ إعلام المتصفح أن هاد الخانة "حريفية" وغاتبقى تحرك */
+  will-change: transform, position, z-index !important;
+
+  /* ⚪ خلفية صلبة 100% (No transparency) */
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  /* 📍 تثبيت المكان */
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  right: 0;
+  z-index: 50 !important;
+}
+
+/* 3️⃣ حل مشكل الاختفاء فـ السكرول العمودي فـ iPhone */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch !important;
+  overflow-y: hidden;
+  position: relative;
+  /* 💡 هادي كتعاون التليفون يعرف الإطار ديال الرسم */
+  contain: content;
+}
+
+/* 4️⃣ تحسين الشوفة فـ التليفون */
+@media (max-width: 1024px) {
+
+  .sticky,
+  td.sticky {
+    box-shadow: none !important;
+    /* خط خفيف باش تبان السمية معزولة ملي تسكرولي لليسار */
+    border-left: 2px solid #f1f5f9 !important;
+  }
+}
+
+/* -------------------------------------------------- */
+/* 🛠️ تحسينات الكتانة */
+/* -------------------------------------------------- */
+
+.font-black {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeSpeed;
+  /* سرعة الرسم أهم من الجمالية فـ الطابلو */
+}

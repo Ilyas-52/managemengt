@@ -1,0 +1,209 @@
+'use client';
+import { Save, Activity, Calendar } from 'lucide-react';
+
+export interface FormData {
+    firstName: string;
+    lastName: string;
+    totalPrice: string | number;
+    pratiqueNote: string;
+    registrationDate: string;
+    examDate: string | null;
+    t1: string | number;
+    t2: string | number;
+    t3: string | number;
+    t4: string | number;
+    t5: string | number;
+    t1_date?: string | null;
+    t2_date?: string | null;
+    t3_date?: string | null;
+    t4_date?: string | null;
+    t5_date?: string | null;
+    t1_timbre: number;
+    t2_timbre: number;
+    t3_timbre: number;
+    t4_timbre: number;
+    t5_timbre: number;
+    t1_medical: boolean;
+    t2_medical: boolean;
+    t3_medical: boolean;
+    t4_medical: boolean;
+    t5_medical: boolean;
+    [key: string]: any;
+}
+
+interface TheorieFormProps {
+    formData: FormData;
+    setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+    handleSubmit: (e: React.FormEvent) => Promise<void>;
+    loading: boolean;
+}
+
+export default function TheorieForm({
+    formData,
+    setFormData,
+    handleSubmit,
+    loading
+}: TheorieFormProps) {
+
+    const handleInputChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const value = e.target.value;
+
+        setFormData((prev) => {
+            const newData = { ...prev, [key]: value };
+
+            if (['t1', 't2', 't3', 't4', 't5'].includes(key) && value !== '' && !newData[`${key}_date`]) {
+                newData[`${key}_date`] = new Date().toISOString().split('T')[0];
+            }
+
+            return newData;
+        });
+    };
+
+    const currentRest = (Number(formData.totalPrice) || 0) - (
+        (Number(formData.t1) || 0) + (Number(formData.t2) || 0) +
+        (Number(formData.t3) || 0) + (Number(formData.t4) || 0) +
+        (Number(formData.t5) || 0)
+    );
+
+    return (
+        <form onSubmit={handleSubmit} className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-16" dir="rtl">
+
+            {/* ================= BASIC INFO ================= */}
+            <div className="bg-white rounded-[30px] p-6 sm:p-10 shadow-[0_10px_40px_rgba(0,0,0,0.06)] border border-slate-100 space-y-10">
+                <h2 className="text-sm text-slate-400 font-bold tracking-widest">معلومات التلميذ</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-500">الاسم الشخصي</label>
+                        <input type="text" value={formData.firstName} onChange={handleInputChange('firstName')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-lg" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-500">الاسم العائلي</label>
+                        <input type="text" value={formData.lastName} onChange={handleInputChange('lastName')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-lg" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-500">تاريخ التسجيل</label>
+                        <input type="date" value={formData.registrationDate} onChange={handleInputChange('registrationDate')} className="w-full h-14 px-4 border border-slate-300 rounded-xl outline-none text-right font-bold" style={{ direction: 'ltr' }} />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-500">تاريخ الامتحان</label>
+                        <input type="date" value={formData.examDate || ''} onChange={handleInputChange('examDate')} className="w-full h-14 px-4 border border-slate-300 rounded-xl outline-none text-right font-bold" style={{ direction: 'ltr' }} />
+                    </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 flex flex-col items-center">
+                    <div className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center shadow-inner">
+                        <label className="text-xs text-slate-400 font-bold tracking-widest">المبلغ الإجمالي</label>
+                        <input type="number" value={formData.totalPrice} onChange={handleInputChange('totalPrice')} onWheel={(e) => e.currentTarget.blur()} placeholder="0" className="w-full mt-3 h-20 bg-transparent text-5xl font-black text-center text-emerald-600 outline-none" />
+                        <span className="text-slate-400 text-sm font-bold">درهم</span>
+                    </div>
+
+                    <div className={`w-full max-w-md mt-6 p-4 rounded-2xl border-2 transition-all duration-500 flex justify-between items-center ${currentRest === 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                        <div className="text-right">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">المبلغ المتبقي</p>
+                            <p className={`text-2xl font-black ${currentRest === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{currentRest} <span className="text-xs">DH</span></p>
+                        </div>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${currentRest === 0 ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white animate-pulse'}`}>
+                            {currentRest === 0 ? '✓' : '!'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ================= TRANCHES ================= */}
+            <div className="mt-10 space-y-6">
+                <h2 className="text-sm text-slate-400 font-bold tracking-widest text-center">الدفعات والرسوم</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+                    {[1, 2, 3, 4, 5].map(n => (
+                        <div key={n} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 space-y-4 text-center relative overflow-hidden">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">الدفعة {n}</span>
+
+                            <input
+                                type="number"
+                                value={formData[`t${n}`] as number || ''}
+                                placeholder="0"
+                                onChange={handleInputChange(`t${n}`)}
+                                className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-lg outline-none focus:border-emerald-500 text-slate-900 shadow-inner"
+                            />
+
+                            <div className="relative">
+                                <input
+                                    type="date"
+                                    value={formData[`t${n}_date`] ? formData[`t${n}_date`].split('T')[0] : ''}
+                                    onChange={(e) => {
+                                        const dateVal = e.target.value;
+                                        setFormData(prev => ({ ...prev, [`t${n}_date`]: dateVal }));
+                                    }}
+                                    className="w-full h-8 text-[10px] font-black text-emerald-600 bg-emerald-50/50 rounded-lg border-none outline-none text-center cursor-pointer"
+                                    style={{ direction: 'ltr' }}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] font-bold text-slate-400">التمبر (Tb)</label>
+                                    <select
+                                        // 🚀 ربط كل سيلكت بالخانة الخاصة بالدفعة (t1_timbre, t2_timbre...)
+                                        value={formData[`t${n}_timbre`] || 0}
+                                        onChange={(e) => {
+                                            const val = Number(e.target.value);
+                                            setFormData(prev => ({ ...prev, [`t${n}_timbre`]: val }));
+                                        }}
+                                        className={`h-9 rounded-lg text-[10px] font-bold border transition-all outline-none text-center ${formData[`t${n}_timbre`] > 0 ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-400 border-slate-200'
+                                            }`}
+                                    >
+                                        <option value={0}>0 DH</option>
+                                        <option value={700}>700 DH (كامل)</option>
+                                        <option value={600}>600 DH</option>
+                                        <option value={500}>500 DH</option>
+                                        <option value={400}>400 DH</option>
+                                        <option value={300}>300 DH</option>
+                                        <option value={200}>200 DH</option>
+                                        <option value={100}>100 DH</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    // 🚀 ربط كل بوطون بالخانة الخاصة بالفيزيتا (t1_medical, t2_medical...)
+                                    onClick={() => setFormData(prev => ({ ...prev, [`t${n}_medical`]: !prev[`t${n}_medical`] }))}
+                                    className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all ${formData[`t${n}_medical`] ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-white text-slate-400 border-slate-200'
+                                        }`}
+                                >
+                                    الفحص (Vm)
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="mt-12 bg-amber-50 rounded-[30px] p-6 sm:p-10 border border-amber-100 shadow-inner">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg rotate-3">
+                        <span className="font-black text-xl">!</span>
+                    </div>
+                    <div>
+                        <h2 className="text-lg text-amber-900 font-black tracking-tight"> ملاحضات  </h2>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <textarea
+                        value={formData.pratiqueNote}
+                        onChange={(e) => setFormData(prev => ({ ...prev, pratiqueNote: e.target.value }))}
+                        placeholder="مثال: التلميذ غايب هاد السيمانة، غايجي غير الثلاثاء مع 10:00..."
+                        className="w-full min-h-[140px] p-6 bg-white border-2 border-amber-100 rounded-2xl outline-none focus:border-amber-400 text-slate-800 font-bold text-lg shadow-sm transition-all resize-none placeholder:text-slate-300 placeholder:font-normal"
+                    />
+
+                </div>
+            </div>
+
+            <div className="mt-10 flex justify-center">
+
+                <button disabled={loading} className="w-full md:w-[450px] h-20 rounded-[2.5rem] bg-slate-900 text-white font-black text-xl hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 shadow-2xl active:scale-95">
+                    {loading ? <Activity className="animate-spin" size={28} /> : <Save size={28} />}
+                    {loading ? 'جاري الحفظ...' : 'حفظ البيانات'}
+                </button>
+            </div>
+        </form>
+    );
+}
