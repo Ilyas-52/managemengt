@@ -33,11 +33,10 @@ export default function BelkassmiPage() {
 
     return (
         <PracticalTerminal
-            // هاد السمية هي اللي غادي تطلع فـ السيستيم فـ خانة الـ instructor_name
             instructorName="belkassmi"
             agenceId={userData.agence_id}
             agenceName={userData.agence_name}
-            // ✅ هادا هو المسمار: كنجمعو المعلومات ف "أوبجيكت" واحد
+            // 🚀 هاد "المسمار" هو اللي كيتسناه Vercel:
             selectedAgency={{
                 id: userData.agence_id,
                 name: userData.agence_name
