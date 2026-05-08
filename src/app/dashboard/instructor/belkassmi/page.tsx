@@ -37,7 +37,11 @@ export default function BelkassmiPage() {
             instructorName="belkassmi"
             agenceId={userData.agence_id}
             agenceName={userData.agence_name}
-            selectedAgency={null}
+            // ✅ هادا هو المسمار: كنجمعو المعلومات ف "أوبجيكت" واحد
+            selectedAgency={{
+                id: userData.agence_id,
+                name: userData.agence_name
+            }}
         />
     );
 }
