@@ -311,6 +311,7 @@ export default function ManagerTerminal() {
                             </button>
                             {showHamzaSub && (
                                 <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-1 py-2">
+                                    {/* ✅ المسمار اللي ناقص ف الـ PC */}
                                     {[
                                         { id: 'emploi', label: '📅 البرنامج', icon: Calendar },
                                         { id: 'suivi', label: '✅ التتبع', icon: ClipboardCheck },
@@ -319,7 +320,11 @@ export default function ManagerTerminal() {
                                         { id: 'exams', label: '🎓 الامتحانات', icon: GraduationCap },
                                         ...(selectedAgency?.name === 'Boudinar' ? [{ id: 'gprs', label: '🛰️ GPRS', icon: Gauge }] : [])
                                     ].map(item => (
-                                        <button key={item.id} onClick={() => setActiveSubTab(item.id)} className={`flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${activeSubTab === item.id ? 'bg-slate-900 text-white' : 'text-slate-400'}`}>
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setActiveSubTab(item.id)} // تأكد بلي كتصيفط item.id (الفرنسي)
+                                            className={`flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${activeSubTab === item.id ? 'bg-slate-900 text-white' : 'text-slate-400'}`}
+                                        >
                                             <item.icon size={14} /> {item.label}
                                         </button>
                                     ))}
