@@ -137,7 +137,7 @@ export default function HamzaFinancials({
                                             className="w-full h-14 bg-white border-2 border-[#1dbf73]/30 rounded-2xl px-5 font-black text-slate-800 text-sm outline-none focus:border-[#1dbf73] shadow-sm"
                                         >
                                             <option value="">— اختر اسم المرشح —</option>
-                                            <option value="">— اختر اسم المرشح —</option>
+
 
                                             {/* 🚀 خيار المترشح الخارجي */}
                                             <option value="EXTERNAL_CANDIDATE" className="text-orange-600 font-black">👤 مترشح خارجي (ساعات إضافية)</option>
