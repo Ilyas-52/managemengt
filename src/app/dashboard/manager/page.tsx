@@ -248,11 +248,10 @@ export default function ManagerTerminal() {
                                     setActiveStaff(theoreticalInstructor);
                                     setShowNathariSub(!showNathariSub);
                                     setShowHamzaSub(false);
-                                    // مهم: كنأكدوا بلي حنا فـ النظري باش ما يتفتحش التطبيقي
-                                    setActiveSubTab('theorie');
+                                    // حيدنا setActiveSubTab('theorie') باش ما يتبلوكاوش تابات التطبيقي
                                 }}
                                 className={`w-full text-right p-5 rounded-[25px] border-2 font-black italic transition-all flex items-center justify-between
-            ${(activeStaff === theoreticalInstructor) ? 'bg-[#0F5A3E] text-white border-[#0F5A3E] shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
+            ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white border-[#0F5A3E] shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
                             >
                                 <span className="flex items-center gap-2">💼 الـنظري</span>
                                 <ChevronDown size={16} className={`transition-transform duration-300 ${showNathariSub ? 'rotate-180' : ''}`} />
@@ -302,9 +301,13 @@ export default function ManagerTerminal() {
                                     setActiveStaff(practicalInstructor);
                                     setShowHamzaSub(!showHamzaSub);
                                     setShowNathariSub(false);
+                                    // ✅ مسمار: كنعطيو emploi كـ default باش ما تبقاش الباج بيضاء
+                                    if (activeSubTab === 'theorie' || !['emploi', 'suivi', 'vehicule', 'cash', 'exams', 'gprs'].includes(activeSubTab)) {
+                                        setActiveSubTab('emploi');
+                                    }
                                 }}
                                 className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
-                                    ${(activeStaff === 'Hamza' || activeStaff === 'Bilal') ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
+                                    ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
                             >
                                 <span className="flex items-center gap-2">🛰️ الـتطبيقي</span>
                                 <ChevronDown size={16} className={`transition-transform duration-300 ${showHamzaSub ? 'rotate-180' : ''}`} />
@@ -363,7 +366,7 @@ export default function ManagerTerminal() {
                         </button>
 
                         {/* ✅ مسمار 1: البحث يبان عند أي مدرس نظري أو في التابات المحددة */}
-                        {(activeStaff === theoreticalInstructor || activeSubTab === 'suivi' || activeSubTab === 'exams') ? (
+                        {(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() || activeSubTab === 'suivi' || activeSubTab === 'exams') ? (
                             <div className="relative flex-1 max-w-md">
                                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <input type="text" placeholder="بـحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pr-9 outline-none text-[11px] font-black" />
@@ -399,7 +402,7 @@ export default function ManagerTerminal() {
                     ) : (
                         <div className="max-w-[1600px] mx-auto space-y-8">
                             {/* ✅ مسمار 2: النظري يخدم مع أي مدرس نظري (براهيم، يوسف، محمد، زكرياء...) */}
-                            {activeStaff === theoreticalInstructor ? (
+                            {activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() ? (
                                 <div className="space-y-8">
                                     {activeNathariTab === 'auto' && <ManagerFinance filteredStudents={filteredStudents} financialStats={financialStats} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} />}
                                     {activeNathariTab === 'truck' && selectedAgency?.name === 'Boudinar' && <ManagerTrucks selectedAgency={selectedAgency} />}
@@ -456,7 +459,7 @@ export default function ManagerTerminal() {
                         <nav className="space-y-4">
                             <button
                                 onClick={() => { setActiveStaff(theoreticalInstructor); setShowNathariSub(!showNathariSub); setShowHamzaSub(false); }}
-                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff === 'Youssef' || activeStaff === 'Mohammed') ? 'bg-[#0F5A3E] text-white' : 'bg-slate-50'}`}
+                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white' : 'bg-slate-50'}`}
                             >
                                 <span>💼 الـنظري</span>
                                 <ChevronDown size={16} />
@@ -471,7 +474,7 @@ export default function ManagerTerminal() {
 
                             <button
                                 onClick={() => { setActiveStaff(practicalInstructor); setShowHamzaSub(!showHamzaSub); setShowNathariSub(false); }}
-                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff === 'Hamza' || activeStaff === 'Bilal') ? 'bg-slate-900 text-white' : 'bg-slate-50'}`}
+                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white' : 'bg-slate-50'}`}
                             >
                                 <span>🛰️ الـتطبيقي</span>
                                 <ChevronDown size={16} />
