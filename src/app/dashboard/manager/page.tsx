@@ -402,12 +402,13 @@ export default function ManagerTerminal() {
                                 </div>
                             ) : (
                                 /* ✅ مسمار 3: التطبيقي يخدم مع (حمزة، بلال، إسماعيل، بلقاسمي...) */
+                                /* ✅ مسمار 01: توحيد لغة البرمجة لداخل */
                                 <div className="space-y-8">
-                                    {activeSubTab === 'البرنامج' && <ManagerPlanning hamzaSchedule={hamzaSchedule} days={days} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'التتبع' && <ManagerSuivi students={filteredStudents} hamzaAttendance={hamzaAttendance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'السيارة' && <ManagerVehicle mileage_start={hamzaLogistics.mileage_start || 0} mileage_end={hamzaLogistics.mileage_end || 0} fuel_expense={hamzaLogistics.fuel_expense || 0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'الصندوق' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'الامتحانات' && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'emploi' && <ManagerPlanning hamzaSchedule={hamzaSchedule} days={days} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'suivi' && <ManagerSuivi students={filteredStudents} hamzaAttendance={hamzaAttendance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'vehicule' && <ManagerVehicle mileage_start={hamzaLogistics.mileage_start || 0} mileage_end={hamzaLogistics.mileage_end || 0} fuel_expense={hamzaLogistics.fuel_expense || 0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'cash' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'exams' && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'gprs' && selectedAgency?.name === 'Boudinar' && <ManagerGPRS weekDate={weekDate} selectedAgency={selectedAgency} />}
                                 </div>
                             )}
@@ -473,6 +474,7 @@ export default function ManagerTerminal() {
                             {showHamzaSub && (
                                 <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-2">
                                     {/* ✅ المسمار المصحح: توحيد الـ IDs مع الـ Desktop */}
+                                    {/* ✅ مسمار 02: هاد الأوبجيكت كيخلي الكليكة تفهم بالفرنسي والمدير يشوف بالعربي */}
                                     {[
                                         { id: 'emploi', label: '📅 البرنامج' },
                                         { id: 'suivi', label: '✅ التتبع' },
@@ -483,8 +485,8 @@ export default function ManagerTerminal() {
                                         <button
                                             key={item.id}
                                             onClick={() => {
-                                                setActiveSubTab(item.id); // صيفط 'emploi' ماشي 'البرنامج'
-                                                setIsSidebarOpen(false);
+                                                setActiveSubTab(item.id); // كيعطي 'emploi' للسيستيم
+                                                setIsSidebarOpen(false);   // كيسد المينيو ف التابلت
                                             }}
                                             className="text-right py-2 text-[11px] font-black capitalize"
                                         >
