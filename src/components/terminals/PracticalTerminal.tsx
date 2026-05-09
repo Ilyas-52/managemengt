@@ -18,11 +18,12 @@ interface PracticalTerminalProps {
     instructorName: string;
     agenceId: string;
     agenceName: string;
-    selectedAgency: any;
+    selectedAgency?: any;
 
 }
 
-export default function PracticalTerminal({ instructorName, agenceId, agenceName, selectedAgency }: PracticalTerminalProps) {
+export default function PracticalTerminal({ instructorName, agenceId, agenceName, selectedAgency: providedAgency }: PracticalTerminalProps) {
+    const selectedAgency = providedAgency || { id: agenceId, name: agenceName };
     const [loading, setLoading] = useState(true);
     const [weekDate, setWeekDate] = useState(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState('planning');
