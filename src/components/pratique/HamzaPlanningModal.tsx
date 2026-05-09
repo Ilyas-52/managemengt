@@ -7,7 +7,7 @@ interface Student {
     first_name: string;
     last_name: string;
     pratique_note?: string;
-    created_at?: string; // 🚀 زدنا هادي باش نعرفو وقت التسجيل
+    registrationDate?: string;
 }
 
 interface ModalProps {
@@ -34,13 +34,16 @@ export default function HamzaPlanningModal({
         setShowModal(null);
     };
 
-    // 🕵️‍♂️ مسمار حساب الوقت: واش التلميذ جديد (قل من 24 ساعة)؟
+    // 🕵️‍♂️ مسمار حساب "الجديد" بناءً على تاريخ الفورم (registrationDate)
     const isNewStudent = (dateStr?: string) => {
         if (!dateStr) return false;
-        const createdDate = new Date(dateStr);
-        const now = new Date();
-        const diffInHours = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
-        return diffInHours <= 24;
+        const regDate = new Date(dateStr);
+        const today = new Date();
+
+        // مقارنة غير اليوم والشهر والسنة
+        return regDate.getDate() === today.getDate() &&
+            regDate.getMonth() === today.getMonth() &&
+            regDate.getFullYear() === today.getFullYear();
     };
 
     return (
@@ -83,29 +86,37 @@ export default function HamzaPlanningModal({
                                             addOrUpdateStudent(`${s.first_name} ${s.last_name}`);
                                             handleClose();
                                         }}
-                                        className="w-full min-h-[80px] p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black hover:bg-[#04b55f] hover:text-white transition-all shadow-sm flex flex-col items-center justify-center gap-1"
+                                        className="w-full min-h-[90px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black hover:bg-[#04b55f] hover:text-white transition-all shadow-sm flex flex-col items-center justify-center gap-2"
                                     >
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-[12px]">{s.first_name} {s.last_name}</span>
-                                            {/* 🆕 مسمار الجديد */}
-                                            {isNewStudent(s.created_at) && (
-                                                <span className="bg-emerald-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-pulse shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[13px]">{s.first_name} {s.last_name}</span>
+                                            {/* 🆕 مسمار الجديد: كيطلع بناء على تاريخ يوسف */}
+                                            {isNewStudent(s.registrationDate) && (
+                                                <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full animate-pulse shadow-sm border border-white">
                                                     جديد
                                                 </span>
                                             )}
                                         </div>
 
-                                        {/* 🕒 مسمار التاريخ */}
-                                        {s.created_at && (
-                                            <div className="flex items-center gap-1 text-[8px] opacity-60 font-medium">
-                                                <Clock size={10} />
-                                                <span>{new Date(s.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                        {/* 🕒 مسمار التاريخ والوقت الكامل */}
+                                        {s.registrationDate && (
+                                            <div className="flex items-center gap-1.5 text-[10px] opacity-70 font-bold bg-white/50 px-2 py-1 rounded-lg group-hover:bg-black/10 group-hover:text-white transition-colors">
+                                                <Clock size={12} />
+                                                <span dir="ltr">
+                                                    {new Date(s.registrationDate).toLocaleString('fr-FR', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </span>
                                             </div>
                                         )}
                                     </button>
 
                                     {s.pratique_note && (
-                                        <div className="absolute -top-2 -right-1 bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce border-2 border-white uppercase z-10">
+                                        <div className="absolute -top-2 -right-1 bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce border-2 border-white uppercase z-10 shadow-md">
                                             تنبيه!
                                         </div>
                                     )}
@@ -114,7 +125,6 @@ export default function HamzaPlanningModal({
                         </div>
                     )}
 
-                    {/* باقي المراحل (reason و count) كيبقاو كيفما هوما */}
                     {step === 'reason' && (
                         <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
                             <button
