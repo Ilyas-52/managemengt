@@ -7,7 +7,7 @@ interface Student {
     first_name: string;
     last_name: string;
     pratique_note?: string;
-    registrationDate?: string;
+    registration_date?: string;
 }
 
 interface ModalProps {
@@ -91,7 +91,7 @@ export default function HamzaPlanningModal({
                                         <div className="flex items-center gap-2">
                                             <span className="text-[13px]">{s.first_name} {s.last_name}</span>
                                             {/* 🆕 مسمار الجديد: كيطلع بناء على تاريخ يوسف */}
-                                            {isNewStudent(s.registrationDate) && (
+                                            {isNewStudent(s.registration_date) && (
                                                 <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full animate-pulse shadow-sm border border-white">
                                                     جديد
                                                 </span>
@@ -99,11 +99,11 @@ export default function HamzaPlanningModal({
                                         </div>
 
                                         {/* 🕒 مسمار التاريخ والوقت الكامل */}
-                                        {s.registrationDate && (
+                                        {s.registration_date && (
                                             <div className="flex items-center gap-1.5 text-[10px] opacity-70 font-bold bg-white/50 px-2 py-1 rounded-lg group-hover:bg-black/10 group-hover:text-white transition-colors">
                                                 <Clock size={12} />
                                                 <span dir="ltr">
-                                                    {new Date(s.registrationDate).toLocaleString('fr-FR', {
+                                                    {new Date(s.registration_date).toLocaleString('fr-FR', {
                                                         day: '2-digit',
                                                         month: '2-digit',
                                                         year: 'numeric',
