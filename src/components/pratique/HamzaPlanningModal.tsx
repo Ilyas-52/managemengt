@@ -7,7 +7,8 @@ interface Student {
     first_name: string;
     last_name: string;
     pratique_note?: string;
-    registration_date?: string; // 🚀 المسمار: رجعناها _date باش تطابق الداتابيز
+    registration_date?: string;
+    created_at?: string; // 🚀 المسمار: رجعناها _date باش تطابق الداتابيز
 }
 
 interface ModalProps {
@@ -103,13 +104,20 @@ export default function HamzaPlanningModal({
                                             <div className="flex items-center gap-1.5 text-[10px] opacity-70 font-bold bg-white/50 px-2 py-1 rounded-lg group-hover:bg-black/10 group-hover:text-white transition-colors" dir="ltr">
                                                 <Clock size={12} />
                                                 <span>
-                                                    {new Date(s.registration_date).toLocaleString('fr-FR', {
+                                                    {/* 1. كناخدو النهار والشهر والسنة من تاريخ يوسف */}
+                                                    {new Date(s.registration_date).toLocaleDateString('fr-FR', {
                                                         day: '2-digit',
                                                         month: '2-digit',
-                                                        year: 'numeric',
+                                                        year: 'numeric'
+                                                    })}
+
+                                                    {' - '}
+
+                                                    {/* 2. كناخدو الساعة والدقيقة من created_at (ديال السيرفر) */}
+                                                    {s.created_at ? new Date(s.created_at).toLocaleTimeString('fr-FR', {
                                                         hour: '2-digit',
                                                         minute: '2-digit'
-                                                    })}
+                                                    }) : '00:00'}
                                                 </span>
                                             </div>
                                         )}
