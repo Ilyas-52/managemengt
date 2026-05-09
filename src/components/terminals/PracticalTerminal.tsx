@@ -21,7 +21,7 @@ interface PracticalTerminalProps {
     selectedAgency?: any;
 
 }
-
+//exports
 export default function PracticalTerminal({ instructorName, agenceId, agenceName, selectedAgency: providedAgency }: PracticalTerminalProps) {
     const selectedAgency = providedAgency || { id: agenceId, name: agenceName };
     const [loading, setLoading] = useState(true);
