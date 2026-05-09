@@ -7,7 +7,7 @@ interface Student {
     first_name: string;
     last_name: string;
     pratique_note?: string;
-    registration_date?: string;
+    registration_date?: string; // 🚀 المسمار: رجعناها _date باش تطابق الداتابيز
 }
 
 interface ModalProps {
@@ -34,13 +34,13 @@ export default function HamzaPlanningModal({
         setShowModal(null);
     };
 
-    // 🕵️‍♂️ مسمار حساب "الجديد" بناءً على تاريخ الفورم (registrationDate)
+    // 🕵️‍♂️ مسمار حساب "الجديد" بناءً على تاريخ الداتابيز (registration_date)
     const isNewStudent = (dateStr?: string) => {
         if (!dateStr) return false;
         const regDate = new Date(dateStr);
         const today = new Date();
 
-        // مقارنة غير اليوم والشهر والسنة
+        // مقارنة اليوم والشهر والسنة
         return regDate.getDate() === today.getDate() &&
             regDate.getMonth() === today.getMonth() &&
             regDate.getFullYear() === today.getFullYear();
@@ -86,11 +86,11 @@ export default function HamzaPlanningModal({
                                             addOrUpdateStudent(`${s.first_name} ${s.last_name}`);
                                             handleClose();
                                         }}
-                                        className="w-full min-h-[90px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black hover:bg-[#04b55f] hover:text-white transition-all shadow-sm flex flex-col items-center justify-center gap-2"
+                                        className="w-full min-h-[95px] p-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black hover:bg-[#04b55f] hover:text-white transition-all shadow-sm flex flex-col items-center justify-center gap-2"
                                     >
                                         <div className="flex items-center gap-2">
                                             <span className="text-[13px]">{s.first_name} {s.last_name}</span>
-                                            {/* 🆕 مسمار الجديد: كيطلع بناء على تاريخ يوسف */}
+                                            {/* 🆕 مسمار الجديد بناءً على تاريخ التسجيل الفعلي */}
                                             {isNewStudent(s.registration_date) && (
                                                 <span className="bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full animate-pulse shadow-sm border border-white">
                                                     جديد
@@ -98,11 +98,11 @@ export default function HamzaPlanningModal({
                                             )}
                                         </div>
 
-                                        {/* 🕒 مسمار التاريخ والوقت الكامل */}
+                                        {/* 🕒 مسمار التاريخ والوقت الكامل (يوم/شهر/سنة ساعة:دقيقة) */}
                                         {s.registration_date && (
-                                            <div className="flex items-center gap-1.5 text-[10px] opacity-70 font-bold bg-white/50 px-2 py-1 rounded-lg group-hover:bg-black/10 group-hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1.5 text-[10px] opacity-70 font-bold bg-white/50 px-2 py-1 rounded-lg group-hover:bg-black/10 group-hover:text-white transition-colors" dir="ltr">
                                                 <Clock size={12} />
-                                                <span dir="ltr">
+                                                <span>
                                                     {new Date(s.registration_date).toLocaleString('fr-FR', {
                                                         day: '2-digit',
                                                         month: '2-digit',

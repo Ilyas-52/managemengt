@@ -27,11 +27,13 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
         <div className="space-y-6">
             <h2 className="text-xl font-black text-[#04b55f] italic uppercase px-2">✅ تتبع الحصص المنجزة</h2>
 
-            {/* 📱 نسخة التليفون */}
+            {/* 📱 نسخة التليفون: بطاقات (Cards) مطورة وديناميكية */}
             <div className="grid grid-cols-1 gap-4 sm:hidden text-right" dir="rtl">
                 {students.map((student) => {
                     const name = `${student.first_name} ${student.last_name}`;
                     const record = attendanceData.find(a => a.student_id === student.id) || {} as Partial<AttendanceRecord>;
+
+                    // جلب الحصص الإضافية
                     const extras = Array.isArray(record.extra_lessons) ? record.extra_lessons : [];
                     const lastExtraLesson = extras.length > 0 ? Math.max(...extras) : baseLessons;
 
@@ -40,11 +42,11 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
                             <div className="flex justify-between items-start mb-4 border-b border-slate-50 pb-3">
                                 <div className="flex flex-col gap-1">
                                     <span className="font-black text-slate-800 italic text-lg leading-tight">{name}</span>
-                                    {/* 🕒 مسمار التاريخ فالتليفون */}
-                                    {student.registrationDate && (
+                                    {/* 🕒 مسمار التاريخ فالتليفون (بيطون) */}
+                                    {student.registration_date && (
                                         <div className="flex items-center gap-1 text-[9px] text-slate-400 font-bold">
                                             <Clock size={10} />
-                                            <span>{formatRegDate(student.registrationDate)}</span>
+                                            <span>{formatRegDate(student.registration_date)}</span>
                                         </div>
                                     )}
                                 </div>
@@ -52,6 +54,7 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
                             </div>
 
                             <div className="grid grid-cols-4 gap-3">
+                                {/* 1. الحصص الأساسية (1-12) */}
                                 {Array.from({ length: baseLessons }).map((_, i) => {
                                     const lessonNum = i + 1;
                                     const isDone = !!record[`s${lessonNum}`];
@@ -66,6 +69,8 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
                                         </button>
                                     );
                                 })}
+
+                                {/* 2. الحصص الإضافية */}
                                 {extras.sort((a: number, b: number) => a - b).map((num: number) => (
                                     <button
                                         key={num}
@@ -76,6 +81,8 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
                                         <CheckCircle2 size={16} strokeWidth={3} />
                                     </button>
                                 ))}
+
+                                {/* 3. بوطونة الـ + فالتليفون */}
                                 <button
                                     onClick={() => toggleLesson(student.id, name, lastExtraLesson + 1, false)}
                                     className="flex flex-col items-center justify-center p-2 rounded-2xl border-2 border-dashed border-slate-200 text-slate-300 hover:border-[#04b55f] hover:text-[#04b55f] transition-all active:scale-95"
@@ -115,11 +122,11 @@ export default function HamzaAttendance({ students, attendanceData, toggleLesson
                                         <td className="py-4 px-6 sticky right-0 z-20 bg-white border-l-2 border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0,02)]">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-black text-slate-700 italic">{name}</span>
-                                                {/* 🕒 مسمار التاريخ فـ الـ PC */}
-                                                {student.registrationDate && (
+                                                {/* 🕒 مسمار التاريخ فـ الـ PC (بيطون) */}
+                                                {student.registration_date && (
                                                     <span className="text-[8px] text-slate-400 font-bold flex items-center gap-1 mt-1">
                                                         <Clock size={8} />
-                                                        {formatRegDate(student.registrationDate)}
+                                                        {formatRegDate(student.registration_date)}
                                                     </span>
                                                 )}
                                             </div>
