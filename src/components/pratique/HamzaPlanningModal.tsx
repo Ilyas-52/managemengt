@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { MessageSquareWarning, CarFront, GraduationCap, ChevronRight, CheckCircle2, Bike } from 'lucide-react'; // زدنا أيقونات للتنبيه
+import { MessageSquareWarning, CarFront, GraduationCap, ChevronRight, CheckCircle2, Bike, Clock } from 'lucide-react';
 
 interface Student {
     id: string;
     first_name: string;
     last_name: string;
-    pratique_note?: string; // 🚀 زدناها هنا باش السيستيم يقرأ الميساج
+    pratique_note?: string;
+    created_at?: string; // 🚀 زدنا هادي باش نعرفو وقت التسجيل
 }
 
 interface ModalProps {
@@ -22,25 +23,30 @@ export default function HamzaPlanningModal({
     students,
     addOrUpdateStudent
 }: ModalProps) {
-    const [isCarAbsent, setIsCarAbsent] = useState(false);
-    const [studentCount, setStudentCount] = useState(4);
     const [step, setStep] = useState<'list' | 'reason' | 'count'>('list');
     const [selectedReason, setSelectedReason] = useState('');
 
     if (!showModal) return null;
 
     const handleClose = () => {
-        setIsCarAbsent(false);
         setStep('list');
         setSelectedReason('');
         setShowModal(null);
     };
 
+    // 🕵️‍♂️ مسمار حساب الوقت: واش التلميذ جديد (قل من 24 ساعة)؟
+    const isNewStudent = (dateStr?: string) => {
+        if (!dateStr) return false;
+        const createdDate = new Date(dateStr);
+        const now = new Date();
+        const diffInHours = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
+        return diffInHours <= 24;
+    };
+
     return (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-xl flex items-center justify-center z-[300] p-4 animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-xl flex items-center justify-center z-[300] p-4 animate-in fade-in zoom-in duration-300 text-right" dir="rtl">
             <div className="bg-white border border-slate-200 rounded-[50px] w-full max-w-xl overflow-hidden shadow-2xl">
 
-                {/* Header ذكي كيتبدل على حساب الخطوة */}
                 <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 className="text-xl font-black text-slate-800 italic uppercase">
                         {step === 'list' && 'اختر المرشح'}
@@ -54,7 +60,6 @@ export default function HamzaPlanningModal({
 
                 <div className="p-8 max-h-[500px] overflow-y-auto no-scrollbar italic font-black uppercase">
 
-                    {/* 🟢 المرحلة 1: قائمة التلاميذ العادية */}
                     {step === 'list' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <button
@@ -65,7 +70,7 @@ export default function HamzaPlanningModal({
                             </button>
 
                             {students.map(s => (
-                                <div key={s.id} className="relative">
+                                <div key={s.id} className="relative group">
                                     <button
                                         onClick={() => {
                                             if (s.pratique_note && s.pratique_note.trim() !== '') {
@@ -78,20 +83,40 @@ export default function HamzaPlanningModal({
                                             addOrUpdateStudent(`${s.first_name} ${s.last_name}`);
                                             handleClose();
                                         }}
-                                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black text-[11px] hover:bg-[#04b55f] hover:text-white transition-all shadow-sm"
+                                        className="w-full min-h-[80px] p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-600 font-black hover:bg-[#04b55f] hover:text-white transition-all shadow-sm flex flex-col items-center justify-center gap-1"
                                     >
-                                        {s.first_name} {s.last_name}
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-[12px]">{s.first_name} {s.last_name}</span>
+                                            {/* 🆕 مسمار الجديد */}
+                                            {isNewStudent(s.created_at) && (
+                                                <span className="bg-emerald-500 text-white text-[8px] px-1.5 py-0.5 rounded-full animate-pulse shadow-sm">
+                                                    جديد
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* 🕒 مسمار التاريخ */}
+                                        {s.created_at && (
+                                            <div className="flex items-center gap-1 text-[8px] opacity-60 font-medium">
+                                                <Clock size={10} />
+                                                <span>{new Date(s.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                        )}
                                     </button>
-                                    {s.pratique_note && <div className="absolute -top-2 -right-1 bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce border-2 border-white uppercase">تنبيه!</div>}
+
+                                    {s.pratique_note && (
+                                        <div className="absolute -top-2 -right-1 bg-amber-500 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce border-2 border-white uppercase z-10">
+                                            تنبيه!
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* 🟡 المرحلة 2: اختيار سبب الغياب */}
+                    {/* باقي المراحل (reason و count) كيبقاو كيفما هوما */}
                     {step === 'reason' && (
                         <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
-                            {/* خيار 1: امتحان (كيدوز لعدد التلاميذ) */}
                             <button
                                 onClick={() => { setSelectedReason('بسبب امتحان 🎓'); setStep('count'); }}
                                 className="w-full p-6 bg-amber-50 border-2 border-amber-100 rounded-[30px] flex items-center justify-between text-amber-700 hover:bg-amber-100 transition-all"
@@ -99,10 +124,9 @@ export default function HamzaPlanningModal({
                                 <div className="flex items-center gap-4 text-lg">
                                     <GraduationCap size={28} /> بسبب امتحان
                                 </div>
-                                <ChevronRight />
+                                <ChevronRight className="rotate-180" />
                             </button>
 
-                            {/* خيار 2: غياب عادي (كيتسجل نيشان) */}
                             <button
                                 onClick={() => { addOrUpdateStudent("غياب السيارة ⚠️"); handleClose(); }}
                                 className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-[30px] flex items-center justify-between text-slate-600 hover:bg-slate-100 transition-all"
@@ -113,11 +137,8 @@ export default function HamzaPlanningModal({
                                 <CheckCircle2 className="text-emerald-500" />
                             </button>
 
-                            {/* خيار 3: صنف A (كيتسجل نيشان) */}
-                            {/* خيار 3: صنف A (الميساج اللي بغيتي) */}
                             <button
                                 onClick={() => {
-                                    // 🚀 هاد الجملة هي اللي غاتطلع فـ الجدول (Emploi)
                                     addOrUpdateStudent("غياب السيارة بسبب الحصة التطبيقية صنف A 🏍️");
                                     handleClose();
                                 }}
@@ -128,13 +149,12 @@ export default function HamzaPlanningModal({
                                     <span>الحصة التطبيقية صنف A</span>
                                 </div>
                                 <div className="bg-blue-500 text-white p-2 rounded-full">
-                                    <ChevronRight size={20} />
+                                    <ChevronRight size={20} className="rotate-180" />
                                 </div>
                             </button>
                         </div>
                     )}
 
-                    {/* 🔴 المرحلة 3: عدد التلاميذ (كتطلع غير فاش كيكون الامتحان) */}
                     {step === 'count' && (
                         <div className="grid grid-cols-3 gap-4 animate-in zoom-in duration-300">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((num) => (
