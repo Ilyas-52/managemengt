@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import TheorieHeader from '@/components/theorie/TheorieHeader';
+import { Printer } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const PdfButton = dynamic(() => import('@/components/theorie/trancheButton'), {
@@ -16,6 +17,9 @@ const MedicalTimbreButton = dynamic(() => import('@/components/theorie/MedicalTi
   ssr: false,
   loading: () => <div className="animate-pulse bg-slate-200 h-10 w-32 rounded-xl"></div>
 });
+
+import { ExamResult } from '@/types/dashboard';
+import { generateDetailedExamsPrint } from '@/components/manager/PrintDetailedResults';
 
 interface Student {
   id: string;
@@ -60,6 +64,7 @@ interface TheoryTerminalProps {
 export default function TheoryTerminal({ instructorName, agenceId, agenceName }: TheoryTerminalProps) {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
+  const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const isSubmitting = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -79,28 +84,29 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
   });
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .eq('agence_id', agenceId)
-      .order('created_at', { ascending: false });
+    try {
+      const [stRes, examRes] = await Promise.all([
+        supabase.from('students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
+        supabase.from('exam_results').select('*').eq('agence_id', agenceId)
+      ]);
 
-    if (error) console.error("❌ Error fetching students:", error.message);
-    if (data) setStudents(data as Student[]);
+      if (stRes.data) setStudents(stRes.data as Student[]);
+      if (examRes.data) setExamResults(examRes.data as ExamResult[]);
+    } catch (err) {
+      console.error("❌ Error fetching data:", err);
+    }
   };
 
   useEffect(() => {
-    setStudents([]); // 🧹 Clear state before fetching
+    setStudents([]);
+    setExamResults([]);
     fetchStudents();
-    const channel = supabase.channel(`students-${agenceId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'students',
-        filter: `agence_id=eq.${agenceId}`
-      }, () => {
-        fetchStudents();
-      }).subscribe();
+
+    const channel = supabase.channel(`theory-sync-${agenceId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `agence_id=eq.${agenceId}` }, () => fetchStudents())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_results', filter: `agence_id=eq.${agenceId}` }, () => fetchStudents())
+      .subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [agenceId]);
 
@@ -232,6 +238,13 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     }
   };
 
+  // 🚀 المسمار: ترتيب الطلبة حسب التاريخ للطباعة
+  const sortedStudentsForPrint = useMemo(() => {
+    return students
+      .filter(s => s.exam_date && s.exam_date.trim() !== '')
+      .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime());
+  }, [students]);
+
   return (
     <div className="min-h-screen w-full bg-[#F4F7F5] flex flex-col font-black italic uppercase tracking-tighter" dir="rtl">
 
@@ -249,13 +262,14 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
               وكالة: {agenceName} | المسئول: {instructorName}
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-4">
-            <div className="flex justify-center lg:justify-start w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-4">
+            <div className="flex justify-center w-full">
               <PdfButton
                 students={students}
                 agenceName={agenceName}
                 selectedDate={selectedDate} // 🚀 مرر الساروت
-              />            </div>
+              />
+            </div>
             <div className="flex justify-center w-full">
               <MedicalTimbreButton
                 students={students}
@@ -263,12 +277,20 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
                 selectedDate={selectedDate} // 🚀 مرر الساروت
               />
             </div>
-            <div className="flex justify-center lg:justify-end w-full">
+            <div className="flex justify-center w-full">
               <ExamScheduleButton
                 students={students}
                 agenceName={agenceName}
                 selectedDate={selectedDate} // 🚀 مرر الساروت
               />
+            </div>
+            <div className="flex justify-center w-full">
+              <button
+                onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName)}
+                className="w-full bg-slate-900 text-white h-[45px] px-4 rounded-xl text-[10px] font-black shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2 border-2 border-slate-900"
+              >
+                <Printer size={14} /> استخراج النتائج (PDF)
+              </button>
             </div>
           </div>
         </div>
