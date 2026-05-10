@@ -53,14 +53,14 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
         const date = new Date(year, month - 1, day);
         const dow = date.getDay(); // 0 للأحد، 6 للسبت
 
-        // 🚀 المسمار الذكي: إيلا كان اليوم السبت أو الأحد، كنزيدو سيمانة
-        if (dow === 0 || dow === 6) {
-            // كنرجعو التاريخ ليوم الاثنين الجاي مباشرة
-            const daysToAdd = (dow === 0) ? 1 : 2; // إيلا كان الأحد نزيدو 1، إيلا كان السبت نزيدو 2
-            date.setDate(date.getDate() + daysToAdd);
+        // 🚀 المسمار المعدل: الأحد بوحدو اللي كيزيد سيمانة لـ القدام
+        if (dow === 0) {
+            // إيلا كان الأحد، كنزيدو نهار باش نمشيو للاثنين ديال السيمانة الجديدة
+            date.setDate(date.getDate() + 1);
         } else {
-            // إيلا كان وسط السيمانة، كنرجعو للاثنين ديال هاد السيمانة (اللوجيك القديم ديالك)
-            const diff = date.getDate() - dow + (dow === 0 ? -6 : 1);
+            // إيلا كان السبت (6) أو أي يوم آخر، كنرجعو للاثنين ديال هاد السيمانة
+            // اللوجيك: نهار السبت غايعطيك الاثنين اللي فات (نفس السيمانة)
+            const diff = date.getDate() - dow + 1;
             date.setDate(diff);
         }
 
@@ -81,7 +81,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
         if (showLoading) setLoading(true);
         try {
             const mondayStr = getMondayString(weekDate);
-            const [stRes, attRes, logRes, ledgRes, examRes, schRes, vehRes] = await Promise.all([
+            const [stRes, attRes, logRes, ledgRes, examRes, vehRes] = await Promise.all([
                 supabase.from('students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
                 supabase.from('lesson_attendance').select('*').eq('agence_id', agenceId).eq('instructor_name', instructorName),
                 supabase.from('vehicle_logs').select('*').eq('staff_name', instructorName).eq('agence_id', agenceId).eq('week_start_date', mondayStr).maybeSingle(),
@@ -94,7 +94,6 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     .order('created_at', { ascending: false }),
 
                 supabase.from('exam_results').select('*').eq('agence_id', agenceId).eq('staff_name', instructorName),
-                supabase.from('weekly_schedules').select('*').eq('instructor_name', instructorName).eq('agence_id', agenceId).eq('week_start_date', mondayStr).maybeSingle(),
                 supabase.from('vehicles').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
             ]);
 
@@ -131,18 +130,42 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 setPreviousBalance(0);
             }
 
-            if (schRes.data && (schRes.data as any).schedule_data) {
-                setSchedule((schRes.data as any).schedule_data);
+            // 3. جلب الجدول الزمني (النسخة القارة Master Template)
+            const { data: schData } = await supabase
+                .from('weekly_schedules')
+                .select('*')
+                .eq('instructor_name', instructorName)
+                .eq('agence_id', agenceId)
+                .eq('week_start_date', '2000-01-01')
+                .maybeSingle();
+
+            if (schData && (schData as any).schedule_data) {
+                setSchedule((schData as any).schedule_data);
                 setIsEditing(false);
             } else {
-                setSchedule({
-                    monday: { morning: [], evening: [] },
-                    tuesday: { morning: [], evening: [] },
-                    wednesday: { morning: [], evening: [] },
-                    thursday: { morning: [], evening: [] },
-                    friday: { morning: [], evening: [] }
-                });
-                setIsEditing(true);
+                // 🚀 مسمار الانتقال: إيلا مالقيناش النسخة القارة، كنجيبو آخر نسخة تسجلات كيفما كان تاريخها
+                const { data: lastSch } = await supabase
+                    .from('weekly_schedules')
+                    .select('*')
+                    .eq('instructor_name', instructorName)
+                    .eq('agence_id', agenceId)
+                    .order('week_start_date', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (lastSch && (lastSch as any).schedule_data) {
+                    setSchedule((lastSch as any).schedule_data);
+                } else {
+                    setSchedule({
+                        monday: { morning: [], evening: [] },
+                        tuesday: { morning: [], evening: [] },
+                        wednesday: { morning: [], evening: [] },
+                        thursday: { morning: [], evening: [] },
+                        friday: { morning: [], evening: [] },
+                        saturday: { morning: [], evening: [] }
+                    });
+                }
+                setIsEditing(false);
             }
         } catch (err) {
             console.error("Fetch Error:", err);
@@ -251,19 +274,19 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
 
     const handleSaveSchedule = async () => {
         setLoading(true);
-        const mondayDate = getMondayString(weekDate);
+        // 🚀 مسمار النسخة القارة: ديما كنسجلو فـ التاريخ 2000-01-01
+        const masterDate = '2000-01-01';
         try {
-            const { data: existingPlan } = await supabase
-                .from('weekly_schedules')
+            const { data: existingPlan } = await supabase.from('weekly_schedules')
                 .select('id')
                 .eq('instructor_name', instructorName)
-                .eq('week_start_date', mondayDate)
-                .single();
-            const isActualUpdate = !!existingPlan;
+                .eq('agence_id', agenceId)
+                .eq('week_start_date', masterDate)
+                .maybeSingle();
 
             const { error: scheduleError } = await supabase.from('weekly_schedules').upsert({
                 instructor_name: instructorName,
-                week_start_date: mondayDate,
+                week_start_date: masterDate,
                 schedule_data: schedule,
                 agence_id: agenceId,
                 agency: agenceName
@@ -271,16 +294,15 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
 
             if (scheduleError) throw scheduleError;
 
-            let notifMsg = isActualUpdate
-                ? `📝 المدرب ${instructorName} قام بتعديل برنامج العمل لأسبوع: ${mondayDate}`
-                : `📅 المدرب ${instructorName} قام بوضع برنامج العمل لأسبوع: ${mondayDate}`;
+            // 🚀 مسمار التنبيهات: حيدنا التاريخ باش تبان بلي التعديل عام
+            const notifMsg = `📝 قام المدرب ${instructorName} بتعديل برنامج العمل`;
 
             await supabase.from('notifications').insert([{
                 agence_id: agenceId,
                 agency: agenceName,
                 staff_name: instructorName,
                 message: notifMsg,
-                type: isActualUpdate ? 'PLANNING_UPDATE' : 'PLANNING_ADD',
+                type: 'PLANNING_UPDATE',
                 category: 'planning',
                 is_read: false,
                 created_at: new Date().toISOString()
@@ -300,18 +322,19 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const handleSmartReset = async () => {
         if (confirm("هل انت متأكد!؟ سيتم حذف البرنامج نهائياً من قاعدة البيانات")) {
             setLoading(true);
-            const mondayDate = getMondayString(weekDate);
+            const masterDate = '2000-01-01';
             const { error: deleteError } = await supabase.from('weekly_schedules')
                 .delete()
                 .eq('instructor_name', instructorName)
-                .eq('week_start_date', mondayDate);
+                .eq('week_start_date', masterDate)
+                .eq('agence_id', agenceId);
 
             if (!deleteError) {
                 await supabase.from('notifications').insert([{
                     agence_id: agenceId,
                     agency: agenceName,
                     staff_name: instructorName,
-                    message: `🗑️ المدرب ${instructorName} قام بمسح برنامج العمل لأسبوع: ${mondayDate}`,
+                    message: `🗑️ قام المدرب ${instructorName} بمسح برنامج العمل`,
                     type: 'PLANNING_DELETE',
                     category: 'planning',
                     is_read: false,

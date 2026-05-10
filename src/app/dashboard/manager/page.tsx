@@ -27,16 +27,15 @@ const GlobalReports = dynamic(() => import('@/components/manager/GlobalReports')
 
 const getMonday = (date: string | Date) => {
     const d = new Date(date);
-    const day = d.getDay(); // 0 للأحد، 6 للسبت
+    const day = d.getDay(); // 0 للأحد، 1 للاثنين ... 6 للسبت
 
-    // 🚀 المسمار الذكي: توحيد اللوجيك مع حمزة
-    if (day === 0 || day === 6) {
-        // إيلا كان الويكاند، كنزيدو الأيام باش نمشيو للاثنين الجاي
-        const daysToAdd = (day === 0) ? 1 : 2;
-        d.setDate(d.getDate() + daysToAdd);
+    // 🚀 اللوجيك الجديد: السبت كيرجع لور، والأحد كيزيد لـ القدام
+    if (day === 0) {
+        // الأحد بوحدو اللي كيزيد نهار باش يبدأ سيمانة جديدة (الاثنين الجاي)
+        d.setDate(d.getDate() + 1);
     } else {
-        // إيلا كان وسط السيمانة، كنرجعو للاثنين ديال هاد السيمانة
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        // السبت (6) ووسط السيمانة (1-5) كيرجعوا للاثنين ديال هاد السيمانة
+        const diff = d.getDate() - day + 1;
         d.setDate(diff);
     }
 
@@ -115,14 +114,29 @@ export default function ManagerTerminal() {
             // 🚀 مسمار التغيير: حيدنا شرط (activeStaff === practicalInstructor) 
             // باش الداتا تحمل بمجرد اختيار الوكالة
 
-            // 2️⃣ جلب الجدول الزمني
+            // 2️⃣ جلب الجدول الزمني (النسخة القارة Master Template)
             const { data: sched } = await supabase
                 .from('weekly_schedules')
                 .select('*')
-                // ✅ الفلترة بـ الوكالة فقط أضمن للمانجر
                 .eq('agence_id', selectedAgency.id)
-                .eq('week_start_date', mondayStr)
+                .eq('week_start_date', '2000-01-01')
                 .maybeSingle();
+
+            let finalSchedule = sched?.schedule_data || null;
+
+            if (!finalSchedule) {
+                // 🚀 مسمار الانتقال للمانجر: إيلا مالقيناش النسخة القارة، كنجيبو آخر نسخة تسجلات
+                const { data: lastSch } = await supabase
+                    .from('weekly_schedules')
+                    .select('*')
+                    .eq('agence_id', selectedAgency.id)
+                    .order('week_start_date', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                finalSchedule = lastSch?.schedule_data || null;
+            }
+
+            setHamzaSchedule(finalSchedule);
 
             // 3️⃣ جلب نتائج الامتحانات - (حيدنا staff_name)
             const { data: res } = await supabase
