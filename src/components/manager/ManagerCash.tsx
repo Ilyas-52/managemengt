@@ -27,14 +27,16 @@ export default function ManagerCash({ balance, ledger, previousBalance, selected
     // 🚀 دالة طباعة كشف الحساب (المداخيل والمصاريف) - نسخة الأندرويد المضمونة
     const handlePrintCash = () => {
         const previousBalanceRow = previousBalance !== 0 ? `
-            <tr>
-                <td style="text-align:right; font-weight: bold; background-color: #f0fdf4;">📦 رصيد البداية (من الأسابيع السابقة)</td>
-                <td style="background-color: #f0fdf4;">رصيد سابق</td>
-                <td style="color: ${previousBalance >= 0 ? '#04b55f' : '#ef4444'}; font-weight: 900; background-color: #f0fdf4;">${previousBalance >= 0 ? 'رصيد إيجابي' : 'رصيد سلبي'}</td>
-                <td style="background-color: #f0fdf4;">--</td>
-                <td style="font-weight: 900; background-color: #f0fdf4;">${previousBalance} DH</td>
-            </tr>
-        ` : '';
+    <tr>
+        <td style="text-align:right; font-weight: 500;">📦 رصيد من الأسابيع السابقة</td>
+        <td style="color: #64748b;">رصيد سابق</td>
+        <td style="color: #64748b; font-weight: 700;">رصيد منقول</td>
+        <td style="color: #94a3b8;">--</td>
+        <td style="font-weight: 900; color: ${previousBalance >= 0 ? '#04b55f' : '#ef4444'};">
+            ${previousBalance >= 0 ? '+' : ''}${previousBalance} DH
+        </td>
+    </tr>
+` : '';
 
         const rows = ledger.map(entry => {
             const date = new Date(entry.created_at).toLocaleDateString('ar-MA');
@@ -179,9 +181,10 @@ export default function ManagerCash({ balance, ledger, previousBalance, selected
                             {/* 🚀 المسمار: سطر "الرصيد السابق" فـ المانجر */}
                             {previousBalance !== 0 && (
                                 <tr className="bg-slate-900 text-white shadow-inner">
-                                    <td className="py-6 pr-4">
-                                        <p className="text-[12px] font-black leading-none">📦 رصيد البداية (من الأسابيع السابقة)</p>
-                                        <span className="text-[7px] text-white/50 uppercase tracking-widest mt-1 block">INITIAL CARRY-OVER</span>
+                                    <td className="py-5 pr-4">
+                                        <p className="text-[13px] font-semibold text-slate-800 leading-none">
+                                            📦 رصيد من الأسابيع السابقة
+                                        </p>
                                     </td>
                                     <td className="py-6 text-center">
                                         <div className="mx-auto w-9 h-9 rounded-2xl flex items-center justify-center bg-emerald-500 text-white">

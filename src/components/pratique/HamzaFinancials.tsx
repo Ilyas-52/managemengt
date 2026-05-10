@@ -208,8 +208,9 @@ export default function HamzaFinancials({
                                         <Wallet size={24} strokeWidth={4} />
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[14px] font-black leading-tight italic">📦 رصيد البداية (من الأسابيع السابقة)</p>
-                                        <p className="text-[9px] text-white/50 font-bold uppercase tracking-widest mt-1">INITIAL CARRY-OVER</p>
+                                        <p className="text-[13px] font-medium text-white/90">
+                                            📦 رصيد من الأسابيع السابقة
+                                        </p>
                                     </div>
                                 </div>
                                 <div className={`text-2xl font-black tabular-nums ${previousBalance >= 0 ? 'text-[#1dbf73]' : 'text-red-400'}`}>
