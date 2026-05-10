@@ -19,16 +19,14 @@ interface FinancialsProps {
     addLedgerEntry: () => Promise<void>;
     loading: boolean;
     students: Student[];
+    totalBalance: number;
 }
 
 export default function HamzaFinancials({
-    ledger, newEntry, setNewEntry, addLedgerEntry, loading, students
+    ledger, newEntry, setNewEntry, addLedgerEntry, loading, students, totalBalance
 }: FinancialsProps) {
 
     const safeLedger = ledger || [];
-    const balance = safeLedger.reduce((acc, curr) =>
-        curr.type === 'recette' ? acc + curr.amount : acc - curr.amount, 0
-    );
 
     const translateCategory = (cat: string) => {
         const mapping: { [key: string]: string } = {
@@ -74,7 +72,7 @@ export default function HamzaFinancials({
                     <div className="text-right">
                         <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em]">الرصيد الإجمالي الحالي</p>
                         <h2 className="text-5xl text-slate-900 tabular-nums font-black mt-1">
-                            {balance} <span className="text-xl text-[#1dbf73] font-black">DH</span>
+                            {totalBalance} <span className="text-xl text-[#1dbf73] font-black">DH</span>
                         </h2>
                     </div>
                 </div>

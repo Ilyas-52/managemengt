@@ -41,6 +41,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const [showModal, setShowModal] = useState<{ day: string; type: string; index?: number } | null>(null);
     const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
     const [ledger, setLedger] = useState<CashRecord[]>([]);
+    const [totalCash, setTotalCash] = useState<number>(0);
     const [vehicleLog, setVehicleLog] = useState<Partial<VehicleLog>>({ mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
     const [newEntry, setNewEntry] = useState({ type: 'recette', category: 'transport_exam', amount: 0, student_name: '', external_name: '' });
     const [examResults, setExamResults] = useState<ExamResult[]>([]);
@@ -82,25 +83,17 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
             const [stRes, attRes, logRes, ledgRes, examRes, schRes, vehRes] = await Promise.all([
                 supabase.from('students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
                 supabase.from('lesson_attendance').select('*').eq('agence_id', agenceId).eq('instructor_name', instructorName),
-                supabase.from('vehicle_logs')
-                    .select('*')
-                    .eq('staff_name', instructorName)
-                    .eq('agence_id', agenceId)
-                    .eq('week_start_date', mondayStr)
-                    .maybeSingle(),
+                supabase.from('vehicle_logs').select('*').eq('staff_name', instructorName).eq('agence_id', agenceId).eq('week_start_date', mondayStr).maybeSingle(),
+
+                // 💰 المسمار 1: حيدنا الفلتر ديال week_start_date باش نجيبو كاع الداتا ديال الصندوق
                 supabase.from('petty_cash_ledger')
                     .select('*')
                     .eq('staff_name', instructorName)
                     .eq('agence_id', agenceId)
-                    .order('created_at', { ascending: false })
-                    .limit(30),
+                    .order('created_at', { ascending: false }),
+
                 supabase.from('exam_results').select('*').eq('agence_id', agenceId).eq('staff_name', instructorName),
-                supabase.from('weekly_schedules')
-                    .select('*')
-                    .eq('instructor_name', instructorName)
-                    .eq('agence_id', agenceId)
-                    .eq('week_start_date', mondayStr)
-                    .maybeSingle(),
+                supabase.from('weekly_schedules').select('*').eq('instructor_name', instructorName).eq('agence_id', agenceId).eq('week_start_date', mondayStr).maybeSingle(),
                 supabase.from('vehicles').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
             ]);
 
@@ -108,8 +101,27 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
             setAttendanceData(attRes.data || []);
             setVehicles(vehRes.data || []);
             setVehicleLog(logRes.data || { mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
-            setLedger(ledgRes.data || []);
             setExamResults(examRes.data || []);
+
+            // 💰 المسمار 2: معالجة بيانات الصندوق (الرصيد التراكمي + العرض الأسبوعي)
+            if (ledgRes.data) {
+                const allEntries = ledgRes.data;
+
+                // 1. حساب الرصيد التراكمي (كاع السيمانات)
+                const cumulativeBalance = allEntries.reduce((acc, entry) => {
+                    return entry.type === 'recette' ? acc + entry.amount : acc - entry.amount;
+                }, 0);
+
+                // هاد الـ cumulativeBalance هو اللي خاصك تعرضو فـ التليفون الفوق كـ "رصيد الصندوق"
+                setTotalCash(cumulativeBalance);
+
+                // 2. فلترة العمليات باش يبانو فـ الجدول غير ديال هاد السيمانة
+                const currentWeekEntries = allEntries.filter(e => e.week_start_date === mondayStr);
+                setLedger(currentWeekEntries);
+            } else {
+                setLedger([]);
+                setTotalCash(0);
+            }
 
             if (schRes.data && (schRes.data as any).schedule_data) {
                 setSchedule((schRes.data as any).schedule_data);
@@ -561,7 +573,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                         {activeTab === 'planning' && <PracticalPlanning schedule={schedule} setSchedule={setSchedule} isEditing={isEditing} setIsEditing={setIsEditing} handleSave={handleSaveSchedule} handleSmartReset={handleSmartReset} setShowModal={setShowModal} loading={loading} />}
                         {activeTab === 'attendance' && <PracticalAttendance students={students} attendanceData={attendanceData} toggleLesson={toggleLesson} />}
                         {activeTab === 'vehicle' && <PracticalLogistics vehicleLog={vehicleLog} setVehicleLog={setVehicleLog} saveVehicleLog={saveVehicleLog} loading={loading} />}
-                        {activeTab === 'financial' && <PracticalFinancials ledger={ledger} newEntry={newEntry} setNewEntry={setNewEntry} addLedgerEntry={addLedgerEntry} loading={loading} students={students} />}
+                        {activeTab === 'financial' && <PracticalFinancials ledger={ledger} totalBalance={totalCash} newEntry={newEntry} setNewEntry={setNewEntry} addLedgerEntry={addLedgerEntry} loading={loading} students={students} />}
                         {activeTab === 'results' && (
                             <PracticalResults
                                 students={students}

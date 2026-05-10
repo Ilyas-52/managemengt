@@ -150,21 +150,34 @@ export default function ManagerTerminal() {
                 .order('created_at', { ascending: false });
 
             // 7️⃣ تحديث الـ State (كولشي كيعمر دقة وحدة)
-            setHamzaLedger(pCash || []);
+            if (pCash) {
+                const currentMonday = getMonday(weekDate);
+                const currentWeekEntries = pCash.filter(e => e.week_start_date === currentMonday);
+                setHamzaLedger(currentWeekEntries);
+
+                const bal = pCash.reduce((acc: number, curr: CashRecord) =>
+                    curr.type === 'recette' ? acc + curr.amount : acc - curr.amount, 0
+                ) || 0;
+
+                setHamzaLogistics({
+                    balance: bal,
+                    mileage_start: vLog?.mileage_start || 0,
+                    mileage_end: vLog?.mileage_end || 0,
+                    fuel_expense: vLog?.fuel_expense || 0
+                });
+            } else {
+                setHamzaLedger([]);
+                setHamzaLogistics({
+                    balance: 0,
+                    mileage_start: vLog?.mileage_start || 0,
+                    mileage_end: vLog?.mileage_end || 0,
+                    fuel_expense: vLog?.fuel_expense || 0
+                });
+            }
+
             setHamzaSchedule(sched?.schedule_data || null);
             setExamResults(res || []);
             setHamzaAttendance(att || []);
-
-            const bal = pCash?.reduce((acc: number, curr: CashRecord) =>
-                curr.type === 'recette' ? acc + curr.amount : acc - curr.amount, 0
-            ) || 0;
-
-            setHamzaLogistics({
-                balance: bal,
-                mileage_start: vLog?.mileage_start || 0,
-                mileage_end: vLog?.mileage_end || 0,
-                fuel_expense: vLog?.fuel_expense || 0
-            });
 
         } catch (error: unknown) {
             if (error instanceof Error) {

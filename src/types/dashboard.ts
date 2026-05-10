@@ -58,6 +58,7 @@ export interface CashRecord {
     external_name?: string;
     staff_name: string;
     agence_id: string;
+    week_start_date?: string;
     created_at: string;
 }
 
