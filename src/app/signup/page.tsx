@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { UserPlus, Mail, Lock, KeyRound, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
-import { notFound } from 'next/navigation';
-
 // 🛡️ التكوين الأمني: الربط بين الكود السري والمسار الحقيقي فـ الـ VS Code
 const ACCESS_CONFIG: Record<string, { role: string, agence: string, full_name: string }> = {
     // وكالة بودينار - Boudinar
@@ -30,9 +28,7 @@ const ACCESS_CONFIG: Record<string, { role: string, agence: string, full_name: s
 };
 
 export default function SignUpPage() {
-    if (process.env.NODE_ENV !== 'development') {
-        notFound();
-    }
+
 
     const router = useRouter();
     const [email, setEmail] = useState('');
