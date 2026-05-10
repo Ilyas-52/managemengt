@@ -27,10 +27,20 @@ const GlobalReports = dynamic(() => import('@/components/manager/GlobalReports')
 
 const getMonday = (date: string | Date) => {
     const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(d.setDate(diff));
-    return monday.toISOString().split('T')[0];
+    const day = d.getDay(); // 0 للأحد، 6 للسبت
+
+    // 🚀 المسمار الذكي: توحيد اللوجيك مع حمزة
+    if (day === 0 || day === 6) {
+        // إيلا كان الويكاند، كنزيدو الأيام باش نمشيو للاثنين الجاي
+        const daysToAdd = (day === 0) ? 1 : 2;
+        d.setDate(d.getDate() + daysToAdd);
+    } else {
+        // إيلا كان وسط السيمانة، كنرجعو للاثنين ديال هاد السيمانة
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+    }
+
+    return d.toISOString().split('T')[0];
 };
 
 const days = [
