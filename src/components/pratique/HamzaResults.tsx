@@ -1,13 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     User, CheckCircle2, Save, Check, X,
     GraduationCap, Car, BadgeDollarSign, Flag, LockIcon,
-    AlertCircle
+    AlertCircle, Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Student, ExamResult } from '@/types/dashboard';
+import { generateDetailedExamsPrint } from '@/components/manager/PrintDetailedResults';
 
 interface Props {
     students: Student[];
@@ -30,8 +31,28 @@ export default function HamzaResults({ students, examResults, updateResult, sele
         }));
     };
 
+    // 🚀 المسمار: ترتيب الطلبة حسب التاريخ للطباعة
+    const sortedStudentsForPrint = useMemo(() => {
+        return students
+            .filter(student =>
+                (student.exam_date && student.exam_date.trim() !== '') &&
+                (student.agence_id === selectedAgency?.id)
+            )
+            .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime());
+    }, [students, selectedAgency]);
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-24 italic text-right" dir="rtl">
+
+            {/* 🔝 بوطون استخراج النتائج (جديد عند حمزة) */}
+            <div className="flex justify-start px-2 no-print">
+                <button
+                    onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, selectedAgency?.name)}
+                    className="bg-slate-900 text-white px-8 py-4 rounded-3xl text-[11px] font-black shadow-2xl hover:bg-emerald-600 transition-all active:scale-95 flex items-center gap-2"
+                >
+                    <Printer size={16} /> استخراج تقرير النتائج الشهري (PDF)
+                </button>
+            </div>
 
             {students
                 .filter(student =>
@@ -39,7 +60,9 @@ export default function HamzaResults({ students, examResults, updateResult, sele
                     (student.exam_date && student.exam_date.trim() !== '') &&
                     // ✅ الشرط 2: يكون تابع لهاد الوكالة
                     (student.agence_id === selectedAgency?.id)
-                ).map((student) => {
+                )
+                .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime())
+                .map((student) => {
                     const name = `${student.first_name} ${student.last_name}`;
                     const dbRecord = examResults.find(r => r.student_id === student.id) || {} as Partial<ExamResult>;
                     const currentChanges = localChanges[student.id] || {} as Partial<ExamResult>;

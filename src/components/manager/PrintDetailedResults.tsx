@@ -1,7 +1,7 @@
 // 📄 src/components/manager/PrintDetailedResults.tsx
 import { ExamResult } from '@/types/dashboard';
 
-export const generateDetailedExamsPrint = (students: any[], examResults: any[]) => {
+export const generateDetailedExamsPrint = (students: any[], examResults: any[], agencyName?: string) => {
     // ✅ المسمار: كرينا Iframe مخفي فـ بلاصة window.open باش يهرب من بلوكاج Android و Honor
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
@@ -84,7 +84,8 @@ export const generateDetailedExamsPrint = (students: any[], examResults: any[]) 
         </head>
         <body>
             <div class="main-header">
-                <h1>نتائج الامتحان لشهر ${currentMonth} ${currentYear}</h1>
+                <h1>مؤسسة ${agencyName || 'بودينار'} لتعليم السياقة</h1>
+                <h2 style="margin-top: -10px; font-size: 16px;">نتائج الامتحان لشهر ${currentMonth} ${currentYear}</h2>
             </div>
 
             <table>
@@ -107,7 +108,7 @@ export const generateDetailedExamsPrint = (students: any[], examResults: any[]) 
                 </tbody>
             </table>
 
-            <div class="footer">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-MA')}</div>
+            <div class="footer">مؤسسة ${agencyName || 'بودينار'} لتعليم السياقة - تاريخ الطباعة: ${new Date().toLocaleDateString('ar-MA')}</div>
 
             <script>
                 window.onload = () => {

@@ -1,7 +1,6 @@
 'use client';
 import { useMemo } from 'react'; // ✅ ضروري باش نرتبو بلا ما نقيسو الداتا الأصلية
 import { Trophy, User, History, Check, Printer, X, AlertCircle, CalendarDays } from 'lucide-react';
-import { generateDetailedExamsPrint } from './PrintDetailedResults';
 import { generateWinnersPrint } from './PrintWinnersList';
 
 import { Student, ExamResult, Agency } from '@/types/dashboard';
@@ -32,12 +31,6 @@ export default function ManagerExams({ students, examResults, highlightedName, h
 
             {/* 🔝 بوطونات الطباعة (كتبقى كما هي) */}
             <div className="flex flex-col sm:flex-row justify-start items-center gap-4 px-2 no-print">
-                <button
-                    onClick={() => generateDetailedExamsPrint(filteredAndSortedStudents, examResults)}
-                    className="bg-white border-2 border-slate-900 text-slate-900 px-6 py-3 rounded-2xl text-[10px] font-black shadow-lg hover:bg-slate-50 transition-all active:scale-95 flex items-center gap-2"
-                >
-                    <Printer size={14} /> نتائج الامتحان الشهري ({filteredAndSortedStudents.length})
-                </button>
                 <button
                     onClick={() => generateWinnersPrint(filteredAndSortedStudents, examResults)}
                     className="bg-emerald-600 border-2 border-emerald-700 text-white px-6 py-3 rounded-2xl text-[10px] font-black shadow-lg hover:bg-emerald-700 transition-all active:scale-95 flex items-center gap-2"
