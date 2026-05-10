@@ -74,6 +74,13 @@ export default function TheorieHeader({
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && displayStudents.length > 0) {
+                                        setSelectedStudentId(displayStudents[0].id);
+                                        setSearchTerm('');
+                                        setIsSearchOpen(false);
+                                    }
+                                }}
                                 placeholder="بحث عن تلميذ..."
                                 className="flex-1 bg-transparent outline-none text-[11px] font-bold text-slate-700 min-w-0"
                             />
@@ -85,6 +92,38 @@ export default function TheorieHeader({
                             <button onClick={() => setIsSearchOpen(false)} className="ml-1 text-slate-400 p-1">
                                 <ChevronDown size={14} className="rotate-90" />
                             </button>
+
+                            {/* 🚀 القائمة المنبثقة للنتائج (جديد) */}
+                            {searchTerm && (
+                                <div className="absolute top-[calc(100%+10px)] left-0 right-0 bg-white border border-slate-100 rounded-[1.5rem] shadow-[0_10px_40px_rgba(0,0,0,0.1)] z-[300] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {displayStudents.map((s) => (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => {
+                                                    setSelectedStudentId(s.id);
+                                                    setSearchTerm('');
+                                                    setIsSearchOpen(false);
+                                                }}
+                                                className="w-full text-right px-4 py-3 hover:bg-emerald-50 flex items-center justify-between group transition-all border-b border-slate-50 last:border-0"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+                                                        <User size={14} />
+                                                    </div>
+                                                    <span className="text-[11px] font-bold text-slate-700 group-hover:text-emerald-700">{s.first_name} {s.last_name}</span>
+                                                </div>
+                                                <ChevronDown size={12} className="-rotate-90 text-slate-300 group-hover:text-emerald-400" />
+                                            </button>
+                                        ))}
+                                        {displayStudents.length === 0 && (
+                                            <div className="px-4 py-6 text-center text-slate-400 text-[10px] font-bold">
+                                                ❌ لا يوجد نتائج
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
