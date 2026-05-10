@@ -70,6 +70,7 @@ export default function ManagerTerminal() {
     const [examResults, setExamResults] = useState<ExamResult[]>([]);
     const [hamzaAttendance, setHamzaAttendance] = useState<AttendanceRecord[]>([]);
     const [hamzaLedger, setHamzaLedger] = useState<CashRecord[]>([]);
+    const [previousBalance, setPreviousBalance] = useState<number>(0);
     const [hamzaLogistics, setHamzaLogistics] = useState<Partial<VehicleLog>>({ mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
 
     const [agencies, setAgencies] = useState<Agency[]>([]);
@@ -155,6 +156,12 @@ export default function ManagerTerminal() {
                 const currentWeekEntries = pCash.filter(e => e.week_start_date === mondayStr);
                 setHamzaLedger(currentWeekEntries);
 
+                // 🚀 المسمار: حساب الرصيد السابق
+                const prevBal = pCash
+                    .filter(e => e.week_start_date && e.week_start_date < mondayStr)
+                    .reduce((acc, entry) => entry.type === 'recette' ? acc + entry.amount : acc - entry.amount, 0);
+                setPreviousBalance(prevBal);
+
                 const bal = pCash.reduce((acc: number, curr: CashRecord) =>
                     curr.type === 'recette' ? acc + curr.amount : acc - curr.amount, 0
                 ) || 0;
@@ -167,6 +174,7 @@ export default function ManagerTerminal() {
                 });
             } else {
                 setHamzaLedger([]);
+                setPreviousBalance(0);
                 setHamzaLogistics({
                     balance: 0,
                     mileage_start: vLog?.mileage_start || 0,
@@ -441,7 +449,7 @@ export default function ManagerTerminal() {
                                     {activeSubTab === 'emploi' && <ManagerPlanning hamzaSchedule={hamzaSchedule} days={days} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'suivi' && <ManagerSuivi students={filteredStudents} hamzaAttendance={hamzaAttendance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'vehicule' && <ManagerVehicle mileage_start={hamzaLogistics.mileage_start || 0} mileage_end={hamzaLogistics.mileage_end || 0} fuel_expense={hamzaLogistics.fuel_expense || 0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'cash' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
+                                    {activeSubTab === 'cash' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} previousBalance={previousBalance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'exams' && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'gprs' && selectedAgency?.name === 'Boudinar' && <ManagerGPRS weekDate={selectedDate} selectedAgency={selectedAgency} />}
                                 </div>

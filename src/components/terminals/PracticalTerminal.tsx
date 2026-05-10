@@ -42,6 +42,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
     const [ledger, setLedger] = useState<CashRecord[]>([]);
     const [totalCash, setTotalCash] = useState<number>(0);
+    const [previousBalance, setPreviousBalance] = useState<number>(0);
     const [vehicleLog, setVehicleLog] = useState<Partial<VehicleLog>>({ mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
     const [newEntry, setNewEntry] = useState({ type: 'recette', category: 'transport_exam', amount: 0, student_name: '', external_name: '' });
     const [examResults, setExamResults] = useState<ExamResult[]>([]);
@@ -115,12 +116,19 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 // هاد الـ cumulativeBalance هو اللي خاصك تعرضو فـ التليفون الفوق كـ "رصيد الصندوق"
                 setTotalCash(cumulativeBalance);
 
-                // 2. فلترة العمليات باش يبانو فـ الجدول غير ديال هاد السيمانة
+                // 2. حساب الرصيد السابق (كاع العمليات اللي قبل من هاد السيمانة)
+                const prevBal = allEntries
+                    .filter(e => e.week_start_date && e.week_start_date < mondayStr)
+                    .reduce((acc, entry) => entry.type === 'recette' ? acc + entry.amount : acc - entry.amount, 0);
+                setPreviousBalance(prevBal);
+
+                // 3. فلترة العمليات باش يبانو فـ الجدول غير ديال هاد السيمانة
                 const currentWeekEntries = allEntries.filter(e => e.week_start_date === mondayStr);
                 setLedger(currentWeekEntries);
             } else {
                 setLedger([]);
                 setTotalCash(0);
+                setPreviousBalance(0);
             }
 
             if (schRes.data && (schRes.data as any).schedule_data) {
@@ -573,7 +581,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                         {activeTab === 'planning' && <PracticalPlanning schedule={schedule} setSchedule={setSchedule} isEditing={isEditing} setIsEditing={setIsEditing} handleSave={handleSaveSchedule} handleSmartReset={handleSmartReset} setShowModal={setShowModal} loading={loading} />}
                         {activeTab === 'attendance' && <PracticalAttendance students={students} attendanceData={attendanceData} toggleLesson={toggleLesson} />}
                         {activeTab === 'vehicle' && <PracticalLogistics vehicleLog={vehicleLog} setVehicleLog={setVehicleLog} saveVehicleLog={saveVehicleLog} loading={loading} />}
-                        {activeTab === 'financial' && <PracticalFinancials ledger={ledger} totalBalance={totalCash} newEntry={newEntry} setNewEntry={setNewEntry} addLedgerEntry={addLedgerEntry} loading={loading} students={students} />}
+                        {activeTab === 'financial' && <PracticalFinancials ledger={ledger} totalBalance={totalCash} previousBalance={previousBalance} newEntry={newEntry} setNewEntry={setNewEntry} addLedgerEntry={addLedgerEntry} loading={loading} students={students} />}
                         {activeTab === 'results' && (
                             <PracticalResults
                                 students={students}

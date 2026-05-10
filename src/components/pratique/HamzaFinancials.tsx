@@ -20,10 +20,11 @@ interface FinancialsProps {
     loading: boolean;
     students: Student[];
     totalBalance: number;
+    previousBalance: number;
 }
 
 export default function HamzaFinancials({
-    ledger, newEntry, setNewEntry, addLedgerEntry, loading, students, totalBalance
+    ledger, newEntry, setNewEntry, addLedgerEntry, loading, students, totalBalance, previousBalance
 }: FinancialsProps) {
 
     const safeLedger = ledger || [];
@@ -199,6 +200,24 @@ export default function HamzaFinancials({
                 <div className="bg-white border-2 border-slate-100 rounded-[40px] p-8 space-y-6 shadow-sm min-h-[600px]">
                     <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.3em] px-2">تقرير المداخيل و المصاريف</p>
                     <div className="space-y-3 max-h-[650px] overflow-y-auto no-scrollbar pr-1">
+                        {/* 🚀 المسمار: سطر "الرصيد السابق" (Virtual Row) */}
+                        {previousBalance !== 0 && (
+                            <div className="bg-slate-900 border-2 border-slate-900 rounded-[25px] p-5 flex items-center justify-between shadow-lg">
+                                <div className="flex items-center gap-4 text-white">
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[#1dbf73] text-white shadow-md">
+                                        <Wallet size={24} strokeWidth={4} />
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[14px] font-black leading-tight italic">📦 رصيد البداية (من الأسابيع السابقة)</p>
+                                        <p className="text-[9px] text-white/50 font-bold uppercase tracking-widest mt-1">INITIAL CARRY-OVER</p>
+                                    </div>
+                                </div>
+                                <div className={`text-2xl font-black tabular-nums ${previousBalance >= 0 ? 'text-[#1dbf73]' : 'text-red-400'}`}>
+                                    {previousBalance >= 0 ? '+' : ''}{previousBalance}<span className="text-[10px] ml-1 uppercase">DH</span>
+                                </div>
+                            </div>
+                        )}
+
                         {safeLedger.map((entry, idx) => {
                             const isRecette = entry.type === 'recette';
                             return (

@@ -6,11 +6,12 @@ import { CashRecord, Agency } from '@/types/dashboard';
 interface Props {
     balance: number;
     ledger: CashRecord[];
+    previousBalance: number;
     selectedAgency?: Agency | null;
     instructorName?: string;
 }
 
-export default function ManagerCash({ balance, ledger, selectedAgency, instructorName }: Props) {
+export default function ManagerCash({ balance, ledger, previousBalance, selectedAgency, instructorName }: Props) {
     const translateCategory = (cat: string) => {
         const mapping: { [key: string]: string } = {
             'transport_exam': 'نقل الامتحان',
@@ -25,6 +26,16 @@ export default function ManagerCash({ balance, ledger, selectedAgency, instructo
 
     // 🚀 دالة طباعة كشف الحساب (المداخيل والمصاريف) - نسخة الأندرويد المضمونة
     const handlePrintCash = () => {
+        const previousBalanceRow = previousBalance !== 0 ? `
+            <tr>
+                <td style="text-align:right; font-weight: bold; background-color: #f0fdf4;">📦 رصيد البداية (من الأسابيع السابقة)</td>
+                <td style="background-color: #f0fdf4;">رصيد سابق</td>
+                <td style="color: ${previousBalance >= 0 ? '#04b55f' : '#ef4444'}; font-weight: 900; background-color: #f0fdf4;">${previousBalance >= 0 ? 'رصيد إيجابي' : 'رصيد سلبي'}</td>
+                <td style="background-color: #f0fdf4;">--</td>
+                <td style="font-weight: 900; background-color: #f0fdf4;">${previousBalance} DH</td>
+            </tr>
+        ` : '';
+
         const rows = ledger.map(entry => {
             const date = new Date(entry.created_at).toLocaleDateString('ar-MA');
             const type = entry.type === 'recette' ? 'مدخول (+)' : 'مصروف (-)';
@@ -45,6 +56,8 @@ export default function ManagerCash({ balance, ledger, selectedAgency, instructo
         </tr>
     `;
         }).join('');
+
+        const finalRows = previousBalanceRow + rows;
 
         // ✅ المسمار: كرينا Iframe مخفي فـ بلاصة window.open (مضمون للأندرويد)
         const iframe = document.createElement('iframe');
@@ -91,7 +104,7 @@ export default function ManagerCash({ balance, ledger, selectedAgency, instructo
                     <th>المبلغ</th>
                 </tr>
             </thead>
-            <tbody>${rows}</tbody>
+            <tbody>${finalRows}</tbody>
         </table>
 
         <div class="footer">تم استخراج التقرير في: ${new Date().toLocaleString('ar-MA')}</div>
@@ -163,6 +176,25 @@ export default function ManagerCash({ balance, ledger, selectedAgency, instructo
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 italic font-black">
+                            {/* 🚀 المسمار: سطر "الرصيد السابق" فـ المانجر */}
+                            {previousBalance !== 0 && (
+                                <tr className="bg-slate-900 text-white shadow-inner">
+                                    <td className="py-6 pr-4">
+                                        <p className="text-[12px] font-black leading-none">📦 رصيد البداية (من الأسابيع السابقة)</p>
+                                        <span className="text-[7px] text-white/50 uppercase tracking-widest mt-1 block">INITIAL CARRY-OVER</span>
+                                    </td>
+                                    <td className="py-6 text-center">
+                                        <div className="mx-auto w-9 h-9 rounded-2xl flex items-center justify-center bg-emerald-500 text-white">
+                                            <FileText size={16} />
+                                        </div>
+                                    </td>
+                                    <td className="py-6 text-center text-[10px] font-black text-white/50">رصيد سابق</td>
+                                    <td className={`py-6 pl-4 text-left font-black tabular-nums text-xl ${previousBalance >= 0 ? 'text-[#04b55f]' : 'text-red-400'}`}>
+                                        {previousBalance >= 0 ? '+' : ''}{previousBalance} <span className="text-[9px] opacity-30">درهم</span>
+                                    </td>
+                                </tr>
+                            )}
+
                             {ledger.map((entry, idx) => (
                                 <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
                                     <td className="py-5 pr-4">
