@@ -49,9 +49,19 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const getMonday = (d: string): Date => {
         const [year, month, day] = d.split('-').map(Number);
         const date = new Date(year, month - 1, day);
-        const dow = date.getDay();
-        const diff = date.getDate() - dow + (dow === 0 ? -6 : 1);
-        date.setDate(diff);
+        const dow = date.getDay(); // 0 للأحد، 6 للسبت
+
+        // 🚀 المسمار الذكي: إيلا كان اليوم السبت أو الأحد، كنزيدو سيمانة
+        if (dow === 0 || dow === 6) {
+            // كنرجعو التاريخ ليوم الاثنين الجاي مباشرة
+            const daysToAdd = (dow === 0) ? 1 : 2; // إيلا كان الأحد نزيدو 1، إيلا كان السبت نزيدو 2
+            date.setDate(date.getDate() + daysToAdd);
+        } else {
+            // إيلا كان وسط السيمانة، كنرجعو للاثنين ديال هاد السيمانة (اللوجيك القديم ديالك)
+            const diff = date.getDate() - dow + (dow === 0 ? -6 : 1);
+            date.setDate(diff);
+        }
+
         return date;
     };
 
