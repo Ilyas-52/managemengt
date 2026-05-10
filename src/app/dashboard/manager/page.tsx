@@ -64,7 +64,7 @@ export default function ManagerTerminal() {
 
     const [students, setStudents] = useState<Student[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [weekDate, setWeekDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
     const [hamzaSchedule, setHamzaSchedule] = useState<ScheduleData | null>(null);
     const [examResults, setExamResults] = useState<ExamResult[]>([]);
@@ -99,6 +99,7 @@ export default function ManagerTerminal() {
         if (!selectedAgency) return;
         try {
             setLoading(true);
+            const mondayStr = getMonday(selectedDate);
 
             // 1️⃣ جلب التلاميذ - هادي ناضية
             const { data: st, error: stErr } = await supabase
@@ -119,7 +120,7 @@ export default function ManagerTerminal() {
                 .select('*')
                 // ✅ الفلترة بـ الوكالة فقط أضمن للمانجر
                 .eq('agence_id', selectedAgency.id)
-                .eq('week_start_date', getMonday(weekDate))
+                .eq('week_start_date', mondayStr)
                 .maybeSingle();
 
             // 3️⃣ جلب نتائج الامتحانات - (حيدنا staff_name)
@@ -139,7 +140,7 @@ export default function ManagerTerminal() {
                 .from('vehicle_logs')
                 .select('*')
                 .eq('agence_id', selectedAgency.id)
-                .eq('week_start_date', getMonday(weekDate))
+                .eq('week_start_date', mondayStr)
                 .maybeSingle();
 
             // 6️⃣ جلب الكاش (Petty Cash) - (حيدنا staff_name)
@@ -151,8 +152,7 @@ export default function ManagerTerminal() {
 
             // 7️⃣ تحديث الـ State (كولشي كيعمر دقة وحدة)
             if (pCash) {
-                const currentMonday = getMonday(weekDate);
-                const currentWeekEntries = pCash.filter(e => e.week_start_date === currentMonday);
+                const currentWeekEntries = pCash.filter(e => e.week_start_date === mondayStr);
                 setHamzaLedger(currentWeekEntries);
 
                 const bal = pCash.reduce((acc: number, curr: CashRecord) =>
@@ -209,9 +209,9 @@ export default function ManagerTerminal() {
             fetchData();
         }
         // 🚀 المسمار المطرّق: حيدنا activeStaff من هنا!
-        // دبا fetchData غاتخدم غير فاش يتبدل التاريخ (weekDate) 
+        // دبا fetchData غاتخدم غير فاش يتبدل التاريخ (selectedDate) 
         // أو فاش يعزل المانجر وكالة أخرى (selectedAgency).
-    }, [weekDate, isIntroLoading, selectedAgency]);
+    }, [selectedDate, isIntroLoading, selectedAgency]);
 
     const financialStats = useMemo(() => {
         return students.reduce((acc, s) => {
@@ -398,15 +398,18 @@ export default function ManagerTerminal() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="relative bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2 px-3 text-[10px] font-black flex items-center gap-2 overflow-hidden">
-                            <Calendar size={12} className="text-emerald-600" />
-                            <span dir="ltr">{new Date(weekDate).toLocaleDateString('fr-FR')}</span>
-                            <input
-                                type="date"
-                                value={weekDate}
-                                onChange={(e) => setWeekDate(e.target.value)}
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            />
+                        <div className="flex items-center gap-3 px-4 py-2 border-2 border-slate-900 rounded-2xl bg-white shadow-sm transition-all hover:border-emerald-500 group">
+                            <Calendar size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+                            <div className="flex flex-col">
+                                <span className="text-[7px] text-slate-400 font-bold uppercase leading-none mb-0.5">تحديد الأسبوع</span>
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-transparent text-slate-900 font-black outline-none text-xs cursor-pointer text-right"
+                                    style={{ direction: 'ltr' }}
+                                />
+                            </div>
                         </div>
                         <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onNavigate={fetchData} />
                     </div>
@@ -440,7 +443,7 @@ export default function ManagerTerminal() {
                                     {activeSubTab === 'vehicule' && <ManagerVehicle mileage_start={hamzaLogistics.mileage_start || 0} mileage_end={hamzaLogistics.mileage_end || 0} fuel_expense={hamzaLogistics.fuel_expense || 0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'cash' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'exams' && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'gprs' && selectedAgency?.name === 'Boudinar' && <ManagerGPRS weekDate={weekDate} selectedAgency={selectedAgency} />}
+                                    {activeSubTab === 'gprs' && selectedAgency?.name === 'Boudinar' && <ManagerGPRS weekDate={selectedDate} selectedAgency={selectedAgency} />}
                                 </div>
                             )}
                         </div>
