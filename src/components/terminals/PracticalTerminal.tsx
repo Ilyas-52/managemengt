@@ -93,7 +93,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     .eq('agence_id', agenceId)
                     .order('created_at', { ascending: false }),
 
-                supabase.from('exam_results').select('*').eq('agence_id', agenceId).eq('staff_name', instructorName),
+                supabase.from('exam_results').select('*').eq('agence_id', agenceId),
                 supabase.from('vehicles').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
             ]);
 

@@ -35,10 +35,10 @@ export default function HamzaResults({ students, examResults, updateResult, sele
 
             {students
                 .filter(student =>
-                    // ✅ الشرط 1: يكون عندو تاريخ
-                    (student.exam_date !== null && student.exam_date !== '') &&
-                    // ✅ الشرط 2: يكون تابع لهاد الوكالة (هادي دابا وسط الفلتر)
-                    (student.agency_id === selectedAgency?.id)
+                    // ✅ الشرط 1: يكون عندو تاريخ امتحان مبرمج
+                    (student.exam_date && student.exam_date.trim() !== '') &&
+                    // ✅ الشرط 2: يكون تابع لهاد الوكالة
+                    (student.agence_id === selectedAgency?.id)
                 ).map((student) => {
                     const name = `${student.first_name} ${student.last_name}`;
                     const dbRecord = examResults.find(r => r.student_id === student.id) || {} as Partial<ExamResult>;
