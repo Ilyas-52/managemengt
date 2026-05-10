@@ -180,20 +180,20 @@ export default function ManagerCash({ balance, ledger, previousBalance, selected
                         <tbody className="divide-y divide-slate-50 italic font-black">
                             {/* 🚀 المسمار: سطر "الرصيد السابق" فـ المانجر */}
                             {previousBalance !== 0 && (
-                                <tr className="bg-slate-900 text-white shadow-inner">
+                                <tr className="border-b border-slate-50 bg-slate-50/30 italic">
                                     <td className="py-5 pr-4">
-                                        <p className="text-[13px] font-semibold text-slate-800 leading-none">
+                                        <p className="text-[13px] font-semibold text-slate-700 leading-none">
                                             📦 رصيد من الأسابيع السابقة
                                         </p>
                                     </td>
-                                    <td className="py-6 text-center">
-                                        <div className="mx-auto w-9 h-9 rounded-2xl flex items-center justify-center bg-emerald-500 text-white">
+                                    <td className="py-5 text-center">
+                                        <div className="mx-auto w-9 h-9 rounded-2xl flex items-center justify-center bg-slate-100 text-slate-400">
                                             <FileText size={16} />
                                         </div>
                                     </td>
-                                    <td className="py-6 text-center text-[10px] font-black text-white/50">رصيد سابق</td>
-                                    <td className={`py-6 pl-4 text-left font-black tabular-nums text-xl ${previousBalance >= 0 ? 'text-[#04b55f]' : 'text-red-400'}`}>
-                                        {previousBalance >= 0 ? '+' : ''}{previousBalance} <span className="text-[9px] opacity-30">درهم</span>
+                                    <td className="py-5 text-center text-[10px] font-bold text-slate-400 uppercase">رصيد سابق</td>
+                                    <td className={`py-5 pl-4 text-left font-black tabular-nums text-xl ${previousBalance >= 0 ? 'text-[#04b55f]' : 'text-red-500'}`}>
+                                        {previousBalance >= 0 ? '+' : ''}{previousBalance} <span className="text-[10px] opacity-40">درهم</span>
                                     </td>
                                 </tr>
                             )}
