@@ -1,7 +1,7 @@
 // 📄 src/components/manager/PrintDetailedResults.tsx
 import { ExamResult } from '@/types/dashboard';
 
-export const generateDetailedExamsPrint = (students: any[], examResults: any[], agencyName?: string) => {
+export const generateDetailedExamsPrint = (students: any[], examResults: any[], agencyName?: string, reportDate?: Date) => {
     // ✅ المسمار: كرينا Iframe مخفي فـ بلاصة window.open باش يهرب من بلوكاج Android و Honor
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
@@ -10,8 +10,8 @@ export const generateDetailedExamsPrint = (students: any[], examResults: any[], 
 
     if (!printWindow) return;
 
-    // 📅 مسمار التوقيت الأوتوماتيكي
-    const currentDate = new Date();
+    // 📅 مسمار التوقيت الأوتوماتيكي (كيتبع الـ selectedDate دابا)
+    const currentDate = reportDate || new Date();
     const monthNames = [
         "يناير", "فبراير", "مارس", "أبريل", "ماي", "يونيو",
         "يوليوز", "غشت", "شتنبر", "أكتوبر", "نوفمبر", "دجنبر"

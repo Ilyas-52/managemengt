@@ -12,9 +12,10 @@ interface Props {
     highlightExpiry: number;
     selectedAgency?: Agency | null;
     instructorName?: string;
+    selectedDate: string;
 }
 
-export default function ManagerExams({ students, examResults, highlightedName, highlightExpiry, selectedAgency, instructorName }: Props) {
+export default function ManagerExams({ students, examResults, highlightedName, highlightExpiry, selectedAgency, instructorName, selectedDate }: Props) {
 
     // 🚀 المسمار اللي طلبيني عليه: كنغربلو غير اللي عندهم تاريخ الامتحان وبلا ما نمسحو أي معلومة
     const filteredAndSortedStudents = useMemo(() => {
@@ -32,7 +33,7 @@ export default function ManagerExams({ students, examResults, highlightedName, h
             {/* 🔝 بوطونات الطباعة (كتبقى كما هي) */}
             <div className="flex flex-col sm:flex-row justify-start items-center gap-4 px-2 no-print">
                 <button
-                    onClick={() => generateWinnersPrint(filteredAndSortedStudents, examResults)}
+                    onClick={() => generateWinnersPrint(filteredAndSortedStudents, examResults, selectedDate)}
                     className="bg-emerald-600 border-2 border-emerald-700 text-white px-6 py-3 rounded-2xl text-[10px] font-black shadow-lg hover:bg-emerald-700 transition-all active:scale-95 flex items-center gap-2"
                 >
                     <Trophy size={14} /> لائحة الناجحين (فقط)

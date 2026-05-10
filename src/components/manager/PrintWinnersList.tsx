@@ -1,7 +1,7 @@
 // 📄 src/components/manager/PrintWinnersList.tsx
 import { ExamResult } from '@/types/dashboard';
 
-export const generateWinnersPrint = (students: any[], examResults: any[]) => {
+export const generateWinnersPrint = (students: any[], examResults: any[], reportDate?: Date | string) => {
     // ✅ المسمار: كرينا Iframe مخفي فـ بلاصة window.open باش يخدم ف أندرويد و Honor
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
@@ -10,14 +10,23 @@ export const generateWinnersPrint = (students: any[], examResults: any[]) => {
 
     if (!printWindow) return;
 
-    // 📅 مسمار الشهر الحالي
-    const currentDate = new Date();
+    // 📅 مسمار التوقيت (كيتبع الـ selectedDate دابا)
+    const currentDate = reportDate ? new Date(reportDate) : new Date();
     const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "ماي", "يونيو", "يوليوز", "غشت", "شتنبر", "أكتوبر", "نوفمبر", "دجنبر"];
     const currentMonth = monthNames[currentDate.getMonth()];
     const currentYear = currentDate.getFullYear();
 
-    // 🚀 مسمار الفلترة: غير اللي نجحو نهائياً (نفس الـ Logic ديالك بلا تغيير)
+    const selMonth = currentDate.getMonth();
+    const selYear = currentDate.getFullYear();
+
+    // 🚀 مسمار الفلترة: الناجحين فـ هاد الشهر والعام بالضبط
     const winners = students.filter(student => {
+        // 1. واش مبرمج فهاد الشهر؟
+        if (!student.exam_date) return false;
+        const d = new Date(student.exam_date);
+        if (d.getMonth() !== selMonth || d.getFullYear() !== selYear) return false;
+
+        // 2. واش نجح نهائياً؟
         const name = `${student.first_name} ${student.last_name}`;
         const r = examResults.find(res => res.student_name === name) || {} as Partial<ExamResult>;
         const theoryPass = r.theory_result === 'admis' || r.theory_result_2 === 'admis';

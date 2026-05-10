@@ -1,5 +1,5 @@
-'use client';
-import { ChevronDown, UserPlus, Search, User } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ChevronDown, UserPlus, Search, User, X } from 'lucide-react';
 
 interface Student {
     id: string;
@@ -23,9 +23,23 @@ export default function TheorieHeader({
     selectedDate, // 🚀 مسمار التاريخ
     setSelectedDate // 🚀 مسمار التحكم
 }: HeaderProps) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-    // الترتيب الزمني ديجا مخدوم فـ الـ Page الكبيرة
-    const displayStudents = [...students];
+    // 🔍 المسمار: فلترة اللائحة على حسب البحث
+    const displayStudents = useMemo(() => {
+        if (!searchTerm.trim()) return students;
+        const query = searchTerm.toLowerCase();
+        return students.filter(s =>
+            s.first_name.toLowerCase().includes(query) ||
+            s.last_name.toLowerCase().includes(query)
+        );
+    }, [students, searchTerm]);
+
+    const handleClearSearch = () => {
+        setSearchTerm('');
+        setIsSearchOpen(false);
+    };
 
     return (
         <header className="sticky top-4 z-[150] w-full px-4 md:px-8">
@@ -50,33 +64,66 @@ export default function TheorieHeader({
                     </div>
                 </div>
 
-                {/* 2️⃣ الوسط: الـ Select النقي */}
-                <div className="flex-1 max-w-md relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                        <Search size={16} />
-                    </div>
-                    <select
-                        value={selectedStudentId || ''}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            // 🚀 إيلا اختار القيمة الخاوية، كنعطيو null باش يرجع الفورم جديد
-                            setSelectedStudentId(val === "" ? null : val);
-                        }}
-                        className="w-full pl-11 pr-10 py-2.5 bg-slate-100/50 border border-transparent rounded-full text-sm font-medium text-slate-700 outline-none appearance-none transition-all focus:bg-white focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 cursor-pointer"
-                    >
-                        {/* ✨ هادا هو "الساروت": دابا ولا كيبان ف القائمة كخيار أول */}
-                        <option value="" className="text-emerald-600 font-bold">
-                            ➕ إضافة مترشح جديد
-                        </option>
+                {/* 2️⃣ الوسط: الـ Select النقي + البحث الذكي */}
+                <div className="flex-1 max-w-md flex items-center gap-2">
 
-                        {displayStudents.map((s) => (
-                            <option key={s.id} value={s.id}>
-                                👤 {s.first_name} {s.last_name}
+                    {/* 🔍 بوطون البحث المتطور */}
+                    <div className={`relative flex items-center transition-all duration-500 ${isSearchOpen ? 'flex-[2]' : 'w-10'}`}>
+                        <button
+                            onClick={() => setIsSearchOpen(!isSearchOpen)}
+                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-all 
+                                ${isSearchOpen ? 'text-emerald-500 bg-emerald-50' : 'text-slate-400 bg-slate-100/50 hover:bg-emerald-50 hover:text-emerald-500'}`}
+                        >
+                            <Search size={18} />
+                        </button>
+
+                        {isSearchOpen && (
+                            <div className="absolute left-10 inset-y-0 right-0 flex items-center bg-slate-100/80 backdrop-blur-sm rounded-full pr-4 animate-in slide-in-from-left-2 duration-300 border border-emerald-500/20">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="ابحث..."
+                                    className="flex-1 bg-transparent outline-none text-[12px] font-bold text-slate-700 px-2"
+                                />
+                                {searchTerm && (
+                                    <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-rose-500 transition-colors">
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 👤 القائمة المنسدلة (دابا مصفية أوتوماتيكياً) */}
+                    <div className={`relative transition-all duration-500 ${isSearchOpen ? 'flex-1 hidden sm:block' : 'flex-[3]'}`}>
+                        <select
+                            value={selectedStudentId || ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSelectedStudentId(val === "" ? null : val);
+                                // 🚀 مسمار: ملي يختار شي واحد، يسد البحث
+                                if (isSearchOpen) setIsSearchOpen(false);
+                            }}
+                            className="w-full pl-4 pr-10 py-2.5 bg-slate-100/50 border border-transparent rounded-full text-[12px] font-bold text-slate-700 outline-none appearance-none transition-all focus:bg-white focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/5 cursor-pointer"
+                        >
+                            <option value="" className="text-emerald-600 font-bold">
+                                ➕ إضافة مترشح جديد
                             </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                        <ChevronDown size={14} />
+
+                            {displayStudents.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                    👤 {s.first_name} {s.last_name}
+                                </option>
+                            ))}
+                            {displayStudents.length === 0 && searchTerm && (
+                                <option disabled>❌ لا يوجد نتائج</option>
+                            )}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <ChevronDown size={14} />
+                        </div>
                     </div>
                 </div>
 

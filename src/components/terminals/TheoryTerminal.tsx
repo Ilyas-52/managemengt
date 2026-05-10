@@ -238,12 +238,19 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     }
   };
 
-  // 🚀 المسمار: ترتيب الطلبة حسب التاريخ للطباعة
+  // 🚀 المسمار: ترتيب الطلبة حسب التاريخ للطباعة (مفلتر بـ الشهر اللي فـ الـ Header)
   const sortedStudentsForPrint = useMemo(() => {
+    const selMonth = selectedDate.getMonth();
+    const selYear = selectedDate.getFullYear();
+
     return students
-      .filter(s => s.exam_date && s.exam_date.trim() !== '')
+      .filter(s => {
+        if (!s.exam_date || s.exam_date.trim() === '') return false;
+        const d = new Date(s.exam_date);
+        return d.getMonth() === selMonth && d.getFullYear() === selYear;
+      })
       .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime());
-  }, [students]);
+  }, [students, selectedDate]);
 
   return (
     <div className="min-h-screen w-full bg-[#F4F7F5] flex flex-col font-black italic uppercase tracking-tighter" dir="rtl">
@@ -286,7 +293,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
             </div>
             <div className="flex justify-center w-full">
               <button
-                onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName)}
+                onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName, selectedDate)}
                 className="w-full bg-slate-900 text-white h-[45px] px-4 rounded-xl text-[10px] font-black shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2 border-2 border-slate-900"
               >
                 <Printer size={14} /> استخراج النتائج (PDF)
