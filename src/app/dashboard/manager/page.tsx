@@ -17,6 +17,7 @@ import ManagerCash from '@/components/manager/ManagerCash';
 import ManagerExams from '@/components/manager/ManagerExams';
 import HolidaysTracker from '@/components/manager/HolidaysTracker';
 import dynamic from 'next/dynamic';
+import { useRef } from 'react';
 import { Agency, Student, ScheduleData, ExamResult, AttendanceRecord, CashRecord, VehicleLog } from '@/types/dashboard';
 
 // ✅ المسمار الحقيقي: شحن الصفحة فقط فالمتصفح وبلا SSR
@@ -71,6 +72,7 @@ export default function ManagerTerminal() {
     const [hamzaLedger, setHamzaLedger] = useState<CashRecord[]>([]);
     const [previousBalance, setPreviousBalance] = useState<number>(0);
     const [hamzaLogistics, setHamzaLogistics] = useState<Partial<VehicleLog>>({ mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
+    const lastFetchedAgencyId = useRef<string | null>(null);
 
     const [agencies, setAgencies] = useState<Agency[]>([]);
     const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
@@ -115,28 +117,30 @@ export default function ManagerTerminal() {
             // باش الداتا تحمل بمجرد اختيار الوكالة
 
             // 2️⃣ جلب الجدول الزمني (النسخة القارة Master Template)
-            const { data: sched } = await supabase
-                .from('weekly_schedules')
-                .select('*')
-                .eq('agence_id', selectedAgency.id)
-                .eq('week_start_date', '2000-01-01')
-                .maybeSingle();
-
-            let finalSchedule = sched?.schedule_data || null;
-
-            if (!finalSchedule) {
-                // 🚀 مسمار الانتقال للمانجر: إيلا مالقيناش النسخة القارة، كنجيبو آخر نسخة تسجلات
-                const { data: lastSch } = await supabase
+            // ✅ مسمار الذكاء: كنجيبو السكاجول غير إيلا تبدلات الوكالة نيشـان
+            if (lastFetchedAgencyId.current !== selectedAgency.id) {
+                const { data: sched } = await supabase
                     .from('weekly_schedules')
                     .select('*')
                     .eq('agence_id', selectedAgency.id)
-                    .order('week_start_date', { ascending: false })
-                    .limit(1)
+                    .eq('week_start_date', '2000-01-01')
                     .maybeSingle();
-                finalSchedule = lastSch?.schedule_data || null;
-            }
 
-            setHamzaSchedule(finalSchedule);
+                let finalSchedule = sched?.schedule_data || null;
+
+                if (!finalSchedule) {
+                    const { data: lastSch } = await supabase
+                        .from('weekly_schedules')
+                        .select('*')
+                        .eq('agence_id', selectedAgency.id)
+                        .order('week_start_date', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    finalSchedule = lastSch?.schedule_data || null;
+                }
+                setHamzaSchedule(finalSchedule);
+                lastFetchedAgencyId.current = selectedAgency.id;
+            }
 
             // 3️⃣ جلب نتائج الامتحانات - (حيدنا staff_name)
             const { data: res } = await supabase
@@ -197,7 +201,6 @@ export default function ManagerTerminal() {
                 });
             }
 
-            setHamzaSchedule(sched?.schedule_data || null);
             setExamResults(res || []);
             setHamzaAttendance(att || []);
 
