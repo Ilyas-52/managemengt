@@ -116,7 +116,7 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
             <body>
                 <div class="header">
                     <h1>مـؤسـسـة ${selectedAgency?.name || 'بـوديـنـار'}</h1>
-                    <div style="font-size: 14px; font-weight: 900;">بـرنـامـج الـحـصـص: ${instructorName}</div>
+                    <div style="font-size: 14px; font-weight: 900;"> البرنامج الأسبوعي للحصص مع الأستاذ: ${instructorName}</div>
                 </div>
                 <table>
                     <thead><tr><th class="day-cell">اليوم</th><th>الصباح</th><th>المساء</th></tr></thead>
