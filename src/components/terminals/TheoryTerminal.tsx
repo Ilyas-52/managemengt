@@ -155,6 +155,11 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     });
   };
 
+  // 🚀 إعادة تعيين حالة التعديل عند تغيير المترشح المحدد لتجنب تعليق الفورم
+  useEffect(() => {
+    setIsEditing(false);
+  }, [selectedStudentId]);
+
   useEffect(() => {
     if (isEditing || isSubmitting.current) return;
     const s = students.find(st => String(st.id) === String(selectedStudentId));
@@ -188,7 +193,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
         registrationDate: s.registration_date ? s.registration_date.split('T')[0] : '',
         examDate: s.exam_date || '',
         licenseType: s.license_type || 'B',
-        trainingLocation: s.training_location || 'lboubsi',
+        trainingLocation: s.license_type === 'A' ? 'YOUNESS' : (s.training_location || 'lboubsi'),
         paidTimbreIn: s.paid_timbre_in || 0,
         paidMedicalIn: s.paid_medical_in || 0,
         notes: s.notes || ''
@@ -224,7 +229,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       registration_date: formData.registrationDate,
       exam_date: formData.examDate || null,
       license_type: formData.licenseType,
-      training_location: formData.trainingLocation,
+      training_location: formData.licenseType === 'A' ? 'YOUNESS' : formData.trainingLocation,
       total_price: Number(formData.totalPrice),
       paid_timbre_in: formData.paidTimbreIn || 0,
       paid_medical_in: formData.paidMedicalIn || 0,

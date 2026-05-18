@@ -60,6 +60,10 @@ export default function TheorieForm({
                 newData[`${key}_date`] = new Date().toISOString().split('T')[0];
             }
 
+            if (key === 'licenseType' && value === 'A') {
+                newData.trainingLocation = 'YOUNESS';
+            }
+
             return newData;
         });
     };
