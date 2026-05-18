@@ -5,6 +5,7 @@ interface Student {
     id: string;
     first_name: string;
     last_name: string;
+    license_type?: string;
 }
 
 interface HeaderProps {
@@ -36,6 +37,27 @@ export default function TheorieHeader({
             return firstName.includes(query) || lastName.includes(query) || fullName.includes(query);
         });
     }, [students, searchTerm]);
+
+    const groupedStudents = useMemo(() => {
+        const groups: { [key: string]: Student[] } = {
+            B: [],
+            C: [],
+            D: [],
+            E: [],
+            A: [],
+        };
+
+        displayStudents.forEach(s => {
+            const type = s.license_type || 'B';
+            if (groups[type]) {
+                groups[type].push(s);
+            } else {
+                groups['B'].push(s);
+            }
+        });
+
+        return groups;
+    }, [displayStudents]);
 
     return (
         <header className="sticky top-4 z-[150] w-full px-2 md:px-8">
@@ -139,11 +161,56 @@ export default function TheorieHeader({
                             className="w-full pl-2 pr-7 py-2 bg-slate-100/50 border border-transparent rounded-full text-[10px] sm:text-[12px] font-bold text-slate-700 outline-none appearance-none truncate"
                         >
                             <option value="">{isSearchOpen ? '➕' : '➕ مترشح جديد'}</option>
-                            {displayStudents.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                    👤 {s.first_name} {s.last_name}
-                                </option>
-                            ))}
+
+                            {groupedStudents.B.length > 0 && (
+                                <optgroup label="🚗 صنف السيارات (Permis B)">
+                                    {groupedStudents.B.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            👤 {s.first_name} {s.last_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+
+                            {groupedStudents.C.length > 0 && (
+                                <optgroup label="🚛 صنف الشاحنات (Permis C)">
+                                    {groupedStudents.C.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            👤 {s.first_name} {s.last_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+
+                            {groupedStudents.D.length > 0 && (
+                                <optgroup label="🚌 صنف الحافلات (Permis D)">
+                                    {groupedStudents.D.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            👤 {s.first_name} {s.last_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+
+                            {groupedStudents.E.length > 0 && (
+                                <optgroup label="🛞 صنف الرموك (Permis E)">
+                                    {groupedStudents.E.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            👤 {s.first_name} {s.last_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
+
+                            {groupedStudents.A.length > 0 && (
+                                <optgroup label="🏍️ صنف الدراجات (Permis A)">
+                                    {groupedStudents.A.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            👤 {s.first_name} {s.last_name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
                         </select>
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                             <ChevronDown size={14} />

@@ -22,6 +22,13 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
 
         const rows = students.map(student => {
             const fullName = `${student.first_name} ${student.last_name}`;
+
+            // 📅 المسمار: جلب تاريخ التسجيل بـ الضبط (يقرا registration_date أو created_at كاحتياط)
+            const rawDate = student.registration_date || student.created_at || student.inscription_date;
+            const inscriptionDate = rawDate
+                ? new Date(rawDate).toLocaleDateString('fr-FR')
+                : '----/--/--';
+
             const record = hamzaAttendance.find(a => a.student_id === student.id) || {} as Partial<AttendanceRecord>;
             const extras = Array.isArray(record.extra_lessons) ? record.extra_lessons : [];
 
@@ -41,47 +48,84 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
             }).join('');
 
             return `
-            <tr>
-                <td class="student-name">${fullName}</td>
-                ${cells}
-                <td class="total-cell">${totalDone}</td>
-            </tr>
-        `;
+        <tr>
+            <td class="student-name">
+                <div>${fullName}</div>
+                <div class="inscription-date">التسجيل: ${inscriptionDate}</div>
+            </td>
+            ${cells}
+            <td class="total-cell">${totalDone}</td>
+        </tr>
+    `;
         }).join('');
 
         const htmlContent = `
-        <html>
-            <head>
-                <title>تقرير تتبع الحصص</title>
-                <style>
-                    @page { size: A4 landscape; margin: 5mm; }
-                    body { font-family: 'Arial', sans-serif; dir: rtl; padding: 10px; color: #000; }
-                    .header { text-align: center; margin-bottom: 15px; border-bottom: 4px solid #04b55f; padding-bottom: 10px; }
-                    table { width: 100% !important; border-collapse: collapse; }
-                    th, td { border: 1.5px solid #333; padding: 4px 2px; text-align: center; font-size: 9px; }
-                    th { background-color: #f8f8f8; font-weight: bold; }
-                    .student-name { text-align: right; padding-right: 8px; width: 120px; font-weight: bold; }
-                    .total-cell { background-color: #f0fdf4; font-weight: 900; color: #04b55f; width: 40px; }
-                    .check-icon { color: #04b55f; font-size: 14px; font-weight: 900; }
-                </style>
-            </head>
-            <body dir="rtl">
-                <div class="header">
-                    <h1>Auto Ecole ${selectedAgency?.name || 'Boudinar'}</h1>
-                    <p style="font-size: 10px; font-weight: bold;">سجل تتبع حصص السياقة (نظام الحصص الديناميكي)</p>
-                </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 120px;">المرشح</th>
-                            ${Array.from({ length: maxLessonOverall }).map((_, i) => `<th>ح${i + 1}</th>`).join('')}
-                            <th style="width: 40px;">المجموع</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </body>
-        </html>`;
+    <html>
+        <head>
+            <title>تقرير تتبع الحصص</title>
+            <style>
+                /* 📐 تظبيط الـ A4 باش يحبس التنقاز الخاوي */
+                @page { 
+                    size: A4 portrait; 
+                    margin: 6mm 5mm 5mm 5mm; 
+                }
+                body { 
+                    font-family: 'Arial', sans-serif; 
+                    dir: rtl; 
+                    padding: 10px; 
+                    color: #000; 
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                .header { text-align: center; margin-bottom: 15px; border-bottom: 4px solid #04b55f; padding-bottom: 10px; }
+                
+                table { 
+                    width: 100% !important; 
+                    border-collapse: collapse; 
+                }
+                /* 🛑 مسمار حصر السطور ف نفس الصفحة */
+                tr { 
+                    page-break-inside: avoid !important; 
+                }
+                
+                th, td { border: 1.5px solid #333; padding: 4px 2px; text-align: center; font-size: 9px; }
+                th { background-color: #f8f8f8; font-weight: bold; }
+                
+                .student-name { 
+                    text-align: right; 
+                    padding-right: 8px; 
+                    width: 110px; 
+                    font-weight: bold; 
+                }
+                /* ✨ تنسيق تاريخ التسجيل تحت السمية */
+                .inscription-date {
+                    font-size: 7.5px;
+                    font-weight: normal;
+                    color: #666;
+                    margin-top: 2px;
+                }
+                
+                .total-cell { background-color: #f0fdf4; font-weight: 900; color: #04b55f; width: 40px; }
+                .check-icon { color: #04b55f; font-size: 14px; font-weight: 900; }
+            </style>
+        </head>
+        <body dir="rtl">
+            <div class="header">
+                <h1>Auto Ecole ${selectedAgency?.name || 'Boudinar'}</h1>
+                <p style="font-size: 10px; font-weight: bold;">سجل تتبع حصص السياقة (نظام الحصص الديناميكي)</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 110px;">المرشح / تاريخ التسجيل</th>
+                        ${Array.from({ length: maxLessonOverall }).map((_, i) => `<th>ح${i + 1}</th>`).join('')}
+                        <th style="width: 40px;">المجموع</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </body>
+    </html>`;
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) return alert("يرجى السماح بالـ Pop-ups");

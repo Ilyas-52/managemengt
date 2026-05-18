@@ -28,6 +28,11 @@ export interface FormData {
     t3_medical: boolean;
     t4_medical: boolean;
     t5_medical: boolean;
+    licenseType?: string;
+    trainingLocation?: string;
+    paidTimbreIn?: number;
+    paidMedicalIn?: number;
+    notes?: string;
     [key: string]: any;
 }
 
@@ -81,6 +86,28 @@ export default function TheorieForm({
                         <input type="text" value={formData.lastName} onChange={handleInputChange('lastName')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-lg" />
                     </div>
                     <div className="flex flex-col gap-2">
+                        <label className="text-sm font-bold text-slate-500">صنف الرخصة</label>
+                        <select value={formData.licenseType || 'B'} onChange={handleInputChange('licenseType')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-base">
+                            <option value="B">السيارات (Permis B)</option>
+                            <option value="C">الشاحنات (Permis C)</option>
+                            <option value="D">الحافلات (Permis D)</option>
+                            <option value="E">الرموك (Permis E)</option>
+                            <option value="A">الدراجات (Permis A)</option>
+                        </select>
+                    </div>
+                    {(formData.licenseType && formData.licenseType !== 'B' && formData.licenseType !== 'A') ? (
+                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <label className="text-sm font-bold text-slate-500">مكان التدريب</label>
+                            <select value={formData.trainingLocation || 'lboubsi'} onChange={handleInputChange('trainingLocation')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-base">
+                                <option value="lboubsi">البوبسي</option>
+                                <option value="sa3lity">السعليتي</option>
+                                <option value="YOUNESS">مؤسسة يونس</option>
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="hidden md:block"></div>
+                    )}
+                    <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-slate-500">تاريخ التسجيل</label>
                         <input type="date" value={formData.registrationDate} onChange={handleInputChange('registrationDate')} className="w-full h-14 px-4 border border-slate-300 rounded-xl outline-none text-right font-bold" style={{ direction: 'ltr' }} />
                     </div>
@@ -111,7 +138,12 @@ export default function TheorieForm({
 
             {/* ================= TRANCHES ================= */}
             <div className="mt-10 space-y-6">
-                <h2 className="text-sm text-slate-400 font-bold tracking-widest text-center">الدفعات والرسوم</h2>
+                <div className="flex flex-col sm:flex-row justify-between items-center max-w-6xl mx-auto px-4 gap-2">
+                    <h2 className="text-sm text-slate-400 font-bold tracking-widest">الدفعات والرسوم</h2>
+                    {(formData.licenseType && formData.licenseType !== 'B') && (
+                        <div className={`px-6 py-2 rounded-full border-2 text-[11px] font-black ${currentRest === 0 ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'}`}>الباقي: {currentRest} DH</div>
+                    )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
                     {[1, 2, 3, 4, 5].map(n => (
                         <div key={n} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 space-y-4 text-center relative overflow-hidden">
@@ -138,40 +170,59 @@ export default function TheorieForm({
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[9px] font-bold text-slate-400">التمبر (Tb)</label>
-                                    <select
-                                        // 🚀 ربط كل سيلكت بالخانة الخاصة بالدفعة (t1_timbre, t2_timbre...)
-                                        value={formData[`t${n}_timbre`] || 0}
-                                        onChange={(e) => {
-                                            const val = Number(e.target.value);
-                                            setFormData(prev => ({ ...prev, [`t${n}_timbre`]: val }));
-                                        }}
-                                        className={`h-9 rounded-lg text-[10px] font-bold border transition-all outline-none text-center ${formData[`t${n}_timbre`] > 0 ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-400 border-slate-200'
+                            {formData.licenseType === 'B' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[9px] font-bold text-slate-400">التمبر (Tb)</label>
+                                        <select
+                                            // 🚀 ربط كل سيلكت بالخانة الخاصة بالدفعة (t1_timbre, t2_timbre...)
+                                            value={formData[`t${n}_timbre`] || 0}
+                                            onChange={(e) => {
+                                                const val = Number(e.target.value);
+                                                setFormData(prev => ({ ...prev, [`t${n}_timbre`]: val }));
+                                            }}
+                                            className={`h-9 rounded-lg text-[10px] font-bold border transition-all outline-none text-center ${formData[`t${n}_timbre`] > 0 ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-400 border-slate-200'
+                                                }`}
+                                        >
+                                            <option value={0}>0 DH</option>
+                                            <option value={700}>700 DH (كامل)</option>
+                                            <option value={600}>600 DH</option>
+                                            <option value={500}>500 DH</option>
+                                            <option value={400}>400 DH</option>
+                                            <option value={300}>300 DH</option>
+                                            <option value={200}>200 DH</option>
+                                            <option value={100}>100 DH</option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        // 🚀 ربط كل بوطون بالخانة الخاصة بالفيزيتا (t1_medical, t2_medical...)
+                                        onClick={() => setFormData(prev => ({ ...prev, [`t${n}_medical`]: !prev[`t${n}_medical`] }))}
+                                        className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all ${formData[`t${n}_medical`] ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-white text-slate-400 border-slate-200'
                                             }`}
                                     >
-                                        <option value={0}>0 DH</option>
-                                        <option value={700}>700 DH (كامل)</option>
-                                        <option value={600}>600 DH</option>
-                                        <option value={500}>500 DH</option>
-                                        <option value={400}>400 DH</option>
-                                        <option value={300}>300 DH</option>
-                                        <option value={200}>200 DH</option>
-                                        <option value={100}>100 DH</option>
-                                    </select>
+                                        الفحص (Vm)
+                                    </button>
                                 </div>
-
-                                <button
-                                    type="button"
-                                    // 🚀 ربط كل بوطون بالخانة الخاصة بالفيزيتا (t1_medical, t2_medical...)
-                                    onClick={() => setFormData(prev => ({ ...prev, [`t${n}_medical`]: !prev[`t${n}_medical`] }))}
-                                    className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all ${formData[`t${n}_medical`] ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-white text-slate-400 border-slate-200'
-                                        }`}
-                                >
-                                    الفحص (Vm)
-                                </button>
-                            </div>
+                            ) : (
+                                <div className="flex gap-1 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, paidTimbreIn: prev.paidTimbreIn === n ? 0 : n }))}
+                                        className={`flex-1 h-9 rounded-xl text-[10px] font-black border-2 transition-all ${formData.paidTimbreIn === n ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-white text-slate-300'}`}
+                                    >
+                                        Tb
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, paidMedicalIn: prev.paidMedicalIn === n ? 0 : n }))}
+                                        className={`flex-1 h-9 rounded-xl text-[10px] font-black border-2 transition-all ${formData.paidMedicalIn === n ? 'bg-blue-500 text-white border-blue-500 shadow-md' : 'bg-white text-slate-300'}`}
+                                    >
+                                        Vm
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -188,8 +239,17 @@ export default function TheorieForm({
 
                 <div className="flex flex-col gap-3">
                     <textarea
-                        value={formData.pratiqueNote}
-                        onChange={(e) => setFormData(prev => ({ ...prev, pratiqueNote: e.target.value }))}
+                        value={formData.licenseType === 'B' ? formData.pratiqueNote : (formData.notes || '')}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setFormData(prev => {
+                                if (prev.licenseType === 'B') {
+                                    return { ...prev, pratiqueNote: val };
+                                } else {
+                                    return { ...prev, notes: val };
+                                }
+                            });
+                        }}
                         placeholder="مثال: التلميذ غايب هاد السيمانة، غايجي غير الثلاثاء مع 10:00..."
                         className="w-full min-h-[140px] p-6 bg-white border-2 border-amber-100 rounded-2xl outline-none focus:border-amber-400 text-slate-800 font-bold text-lg shadow-sm transition-all resize-none placeholder:text-slate-300 placeholder:font-normal"
                     />

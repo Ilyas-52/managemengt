@@ -51,6 +51,16 @@ interface Student {
   exam_date: string | null;
   created_at?: string;
   agence_id?: string;
+  license_type?: string;
+  training_location?: string;
+  notes?: string | null;
+  paid_timbre_in?: number;
+  paid_medical_in?: number;
+  t1?: number;
+  t2?: number;
+  t3?: number;
+  t4?: number;
+  t5?: number;
 }
 
 import TheorieForm, { FormData as TheoryFormData } from '@/components/theorie/TheorieForm';
@@ -80,17 +90,30 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     t1_medical: false, t2_medical: false, t3_medical: false, t4_medical: false, t5_medical: false,
     pratiqueNote: '',
     registrationDate: new Date().toISOString().split('T')[0],
-    examDate: ''
+    examDate: '',
+    licenseType: 'B',
+    trainingLocation: 'lboubsi',
+    paidTimbreIn: 0,
+    paidMedicalIn: 0,
+    notes: ''
   });
 
   const fetchStudents = async () => {
     try {
-      const [stRes, examRes] = await Promise.all([
+      const [stRes, truckRes, examRes] = await Promise.all([
         supabase.from('students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
+        supabase.from('truck_students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
         supabase.from('exam_results').select('*').eq('agence_id', agenceId)
       ]);
 
-      if (stRes.data) setStudents(stRes.data as Student[]);
+      const normalStudents = (stRes.data || []).map((s: any) => ({ ...s, license_type: 'B' }));
+      const heavyStudents = (truckRes.data || []).map((s: any) => ({ ...s }));
+
+      const allMerged = [...normalStudents, ...heavyStudents].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
+      setStudents(allMerged);
       if (examRes.data) setExamResults(examRes.data as ExamResult[]);
     } catch (err) {
       console.error("❌ Error fetching data:", err);
@@ -104,6 +127,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
 
     const channel = supabase.channel(`theory-sync-${agenceId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `agence_id=eq.${agenceId}` }, () => fetchStudents())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'truck_students', filter: `agence_id=eq.${agenceId}` }, () => fetchStudents())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'exam_results', filter: `agence_id=eq.${agenceId}` }, () => fetchStudents())
       .subscribe();
 
@@ -122,7 +146,12 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       t1_medical: false, t2_medical: false, t3_medical: false, t4_medical: false, t5_medical: false,
       pratiqueNote: '',
       registrationDate: new Date().toISOString().split('T')[0],
-      examDate: ''
+      examDate: '',
+      licenseType: 'B',
+      trainingLocation: 'lboubsi',
+      paidTimbreIn: 0,
+      paidMedicalIn: 0,
+      notes: ''
     });
   };
 
@@ -130,33 +159,39 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     if (isEditing || isSubmitting.current) return;
     const s = students.find(st => String(st.id) === String(selectedStudentId));
     if (selectedStudentId && s) {
+      const isHeavy = s.license_type && s.license_type !== 'B';
       setFormData({
         firstName: s.first_name || '',
         lastName: s.last_name || '',
         totalPrice: s.total_price || '',
-        t1: s.tranche_1 || '',
-        t2: s.tranche_2 || '',
-        t3: s.tranche_3 || '',
-        t4: s.tranche_4 || '',
-        t5: s.tranche_5 || '',
+        t1: isHeavy ? (s.t1 || '') : (s.tranche_1 || ''),
+        t2: isHeavy ? (s.t2 || '') : (s.tranche_2 || ''),
+        t3: isHeavy ? (s.t3 || '') : (s.tranche_3 || ''),
+        t4: isHeavy ? (s.t4 || '') : (s.tranche_4 || ''),
+        t5: isHeavy ? (s.t5 || '') : (s.tranche_5 || ''),
         t1_date: s.t1_date || null,
         t2_date: s.t2_date || null,
         t3_date: s.t3_date || null,
         t4_date: s.t4_date || null,
         t5_date: s.t5_date || null,
-        t1_timbre: Number(s.t1_timbre_amount) || 0,
-        t2_timbre: Number(s.t2_timbre_amount) || 0,
-        t3_timbre: Number(s.t3_timbre_amount) || 0,
-        t4_timbre: Number(s.t4_timbre_amount) || 0,
-        t5_timbre: Number(s.t5_timbre_amount) || 0,
-        t1_medical: s.t1_medical_paid || false,
-        t2_medical: s.t2_medical_paid || false,
-        t3_medical: s.t3_medical_paid || false,
-        t4_medical: s.t4_medical_paid || false,
-        t5_medical: s.t5_medical_paid || false,
+        t1_timbre: isHeavy ? 0 : (Number(s.t1_timbre_amount) || 0),
+        t2_timbre: isHeavy ? 0 : (Number(s.t2_timbre_amount) || 0),
+        t3_timbre: isHeavy ? 0 : (Number(s.t3_timbre_amount) || 0),
+        t4_timbre: isHeavy ? 0 : (Number(s.t4_timbre_amount) || 0),
+        t5_timbre: isHeavy ? 0 : (Number(s.t5_timbre_amount) || 0),
+        t1_medical: isHeavy ? false : (s.t1_medical_paid || false),
+        t2_medical: isHeavy ? false : (s.t2_medical_paid || false),
+        t3_medical: isHeavy ? false : (s.t3_medical_paid || false),
+        t4_medical: isHeavy ? false : (s.t4_medical_paid || false),
+        t5_medical: isHeavy ? false : (s.t5_medical_paid || false),
         pratiqueNote: s.pratique_note || '',
         registrationDate: s.registration_date ? s.registration_date.split('T')[0] : '',
-        examDate: s.exam_date || ''
+        examDate: s.exam_date || '',
+        licenseType: s.license_type || 'B',
+        trainingLocation: s.training_location || 'lboubsi',
+        paidTimbreIn: s.paid_timbre_in || 0,
+        paidMedicalIn: s.paid_medical_in || 0,
+        notes: s.notes || ''
       });
     } else if (!selectedStudentId) {
       resetForm();
@@ -173,7 +208,37 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     setLoading(true);
     isSubmitting.current = true;
 
-    const payload = {
+    const isHeavy = formData.licenseType && formData.licenseType !== 'B';
+    const existingStudent = students.find(st => String(st.id) === String(selectedStudentId));
+
+    // Determine target table cleanly
+    const targetTable = selectedStudentId
+      ? ((existingStudent?.license_type && existingStudent.license_type !== 'B') ? 'truck_students' : 'students')
+      : (isHeavy ? 'truck_students' : 'students');
+
+    const payload = targetTable === 'truck_students' ? {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      agence_id: agenceId,
+      notes: formData.notes || '',
+      registration_date: formData.registrationDate,
+      exam_date: formData.examDate || null,
+      license_type: formData.licenseType,
+      training_location: formData.trainingLocation,
+      total_price: Number(formData.totalPrice),
+      paid_timbre_in: formData.paidTimbreIn || 0,
+      paid_medical_in: formData.paidMedicalIn || 0,
+      t1: Number(formData.t1) || 0,
+      t2: Number(formData.t2) || 0,
+      t3: Number(formData.t3) || 0,
+      t4: Number(formData.t4) || 0,
+      t5: Number(formData.t5) || 0,
+      t1_date: formData.t1_date || null,
+      t2_date: formData.t2_date || null,
+      t3_date: formData.t3_date || null,
+      t4_date: formData.t4_date || null,
+      t5_date: formData.t5_date || null
+    } : {
       first_name: formData.firstName,
       last_name: formData.lastName,
       agence_id: agenceId,
@@ -206,14 +271,16 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
 
     try {
       const { error: dbError } = selectedStudentId
-        ? await supabase.from('students').update(payload).eq('id', selectedStudentId)
-        : await supabase.from('students').insert([payload]);
+        ? await supabase.from(targetTable).update(payload).eq('id', selectedStudentId)
+        : await supabase.from(targetTable).insert([payload]);
 
       if (dbError) throw dbError;
 
       let notifMsg = selectedStudentId
         ? `📝 ${instructorName} عدل ملف المترشح: ${formData.firstName} ${formData.lastName}`
-        : `🆕 ${instructorName} سجل مترشح جديد: ${formData.firstName} ${formData.lastName}`;
+        : (isHeavy
+          ? `${instructorName} سجل تلميذ صنف Permis ${formData.licenseType}`
+          : `🆕 ${instructorName} سجل مترشح جديد: ${formData.firstName} ${formData.lastName}`);
 
       await supabase.from('notifications').insert([{
         agence_id: agenceId,

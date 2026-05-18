@@ -17,10 +17,11 @@ interface Props {
     unreadCount: number;
     onMarkAllRead: () => void;
     onMarkSingleRead: (id: string) => void;
+    onDeleteNotification: (id: string) => void;
     onNavigate: (n: Notification) => void;
 }
 
-export default function NotificationDropdown({ notifications, unreadCount, onMarkAllRead, onMarkSingleRead, onNavigate }: Props) {
+export default function NotificationDropdown({ notifications, unreadCount, onMarkAllRead, onMarkSingleRead, onDeleteNotification, onNavigate }: Props) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -99,9 +100,21 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex justify-between items-center mb-1">
                                                         <span className="text-[10px] font-black text-slate-900 uppercase italic leading-none">{n.staff_name}</span>
-                                                        <span className="text-[7px] text-slate-400 font-bold bg-slate-50 px-1.5 py-0.5 rounded-md">
-                                                            {new Date(n.created_at).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[7px] text-slate-400 font-bold bg-slate-50 px-1.5 py-0.5 rounded-md">
+                                                                {new Date(n.created_at).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    onDeleteNotification(n.id);
+                                                                }}
+                                                                className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded-md hover:bg-rose-50 flex items-center justify-center shrink-0"
+                                                                title="حذف التنبيه"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <p className={`text-[11px] font-bold italic tracking-tighter leading-snug ${!n.is_read ? 'text-slate-800' : 'text-slate-400'}`}>
                                                         {n.message}

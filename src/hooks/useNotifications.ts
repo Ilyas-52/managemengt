@@ -54,6 +54,16 @@ export function useNotifications(agencyName: string) {
         fetchNotifications();
     };
 
+    const deleteNotification = async (id: string) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        const deletedNotif = notifications.find(n => n.id === id);
+        if (deletedNotif && !deletedNotif.is_read) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+        await supabase.from('notifications').delete().eq('id', id);
+        fetchNotifications();
+    };
+
     useEffect(() => {
         if (!agencyName) return;
         fetchNotifications();
@@ -76,5 +86,5 @@ export function useNotifications(agencyName: string) {
         return () => { supabase.removeChannel(channel); };
     }, [agencyName]);
 
-    return { notifications, unreadCount, markAllAsRead, markSingleAsRead, fetchNotifications };
+    return { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification, fetchNotifications };
 }

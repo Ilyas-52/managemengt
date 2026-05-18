@@ -95,7 +95,7 @@ export default function ManagerTerminal() {
         return 'Youssef'; // Default لـ Boudinar
     }, [selectedAgency]);
 
-    const { notifications, unreadCount, markAllAsRead, markSingleAsRead } = useNotifications(selectedAgency?.name || 'Boudinar');
+    const { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification } = useNotifications(selectedAgency?.name || 'Boudinar');
 
     const fetchData = async () => {
         if (!selectedAgency) return;
@@ -436,7 +436,7 @@ export default function ManagerTerminal() {
                                 />
                             </div>
                         </div>
-                        <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onNavigate={fetchData} />
+                        <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onDeleteNotification={deleteNotification} onNavigate={fetchData} />
                     </div>
                 </header>
 
