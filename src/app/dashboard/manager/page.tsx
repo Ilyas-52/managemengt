@@ -404,26 +404,33 @@ export default function ManagerTerminal() {
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col w-full lg:pr-[280px] min-h-screen relative overflow-x-hidden pb-80 sm:pb-20">
-                <header className="sticky top-0 w-full flex items-center justify-between px-3 py-3 lg:px-10 lg:py-6 border-b border-slate-200 bg-white z-[1000] shadow-sm">
-                    <div className="flex items-center gap-4 flex-1">
+                <header className="sticky top-0 w-full flex flex-col sm:flex-row items-center justify-between gap-3 px-3 py-3 lg:px-10 lg:py-6 border-b border-slate-200 bg-white z-[1000] shadow-sm">
+                    <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
                         <button
                             onClick={() => setIsSidebarOpen(true)}
-                            className="lg:hidden text-slate-900 bg-slate-100 p-2.5 rounded-xl relative z-50"
+                            className="lg:hidden text-slate-900 bg-slate-100 p-2.5 rounded-xl relative z-50 animate-pulse"
                         >
                             <Menu size={20} />
                         </button>
 
                         {/* ✅ مسمار 1: البحث يبان عند أي مدرس نظري أو في التابات المحددة */}
                         {(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() || activeSubTab === 'suivi' || activeSubTab === 'exams') ? (
-                            <div className="relative flex-1 max-w-md">
+                            <div className="relative flex-1 max-w-md w-full sm:w-auto">
                                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                <input type="text" placeholder="بـحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pr-9 outline-none text-[11px] font-black" />
+                                <input
+                                    type="text"
+                                    placeholder="بـحث..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-100/80 border border-slate-200 rounded-xl py-2.5 pr-9 outline-none text-xs font-black text-slate-900"
+                                    style={{ color: '#0f172a', fontWeight: 900, caretColor: '#0F5A3E' }}
+                                />
                             </div>
                         ) : <div className="hidden sm:block text-[10px] text-slate-300 italic font-black uppercase">Auto Ecole {selectedAgency?.name || 'Boudinar'} Terminal</div>}
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3 px-4 py-2 border-2 border-slate-900 rounded-2xl bg-white shadow-sm transition-all hover:border-emerald-500 group">
+                    <div className="flex flex-row items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <div className="flex items-center gap-3 px-4 py-2 border-2 border-slate-900 rounded-2xl bg-white shadow-sm transition-all hover:border-emerald-500 group w-full sm:w-auto justify-between sm:justify-start">
                             <Calendar size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />
                             <div className="flex flex-col">
                                 <span className="text-[7px] text-slate-400 font-bold uppercase leading-none mb-0.5">تحديد الأسبوع</span>
@@ -436,7 +443,9 @@ export default function ManagerTerminal() {
                                 />
                             </div>
                         </div>
-                        <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onDeleteNotification={deleteNotification} onNavigate={fetchData} />
+                        <div className="flex-shrink-0">
+                            <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onDeleteNotification={deleteNotification} onNavigate={fetchData} />
+                        </div>
                     </div>
                 </header>
 

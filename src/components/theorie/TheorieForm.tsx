@@ -23,11 +23,11 @@ export interface FormData {
     t3_timbre: number;
     t4_timbre: number;
     t5_timbre: number;
-    t1_medical: boolean;
-    t2_medical: boolean;
-    t3_medical: boolean;
-    t4_medical: boolean;
-    t5_medical: boolean;
+    t1_medical: string;
+    t2_medical: string;
+    t3_medical: string;
+    t4_medical: string;
+    t5_medical: string;
     licenseType?: string;
     trainingLocation?: string;
     paidTimbreIn?: number;
@@ -199,15 +199,25 @@ export default function TheorieForm({
                                         </select>
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        // 🚀 ربط كل بوطون بالخانة الخاصة بالفيزيتا (t1_medical, t2_medical...)
-                                        onClick={() => setFormData(prev => ({ ...prev, [`t${n}_medical`]: !prev[`t${n}_medical`] }))}
-                                        className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all ${formData[`t${n}_medical`] ? 'bg-blue-500 text-white border-blue-500 shadow-sm' : 'bg-white text-slate-400 border-slate-200'
-                                            }`}
-                                    >
-                                        الفحص (Vm)
-                                    </button>
+                                    <div className="flex flex-col gap-1 w-full">
+                                        <label className="text-[8px] font-black text-slate-400 block pr-1">الفحص (Vm)</label>
+                                        <select
+                                            value={formData[`t${n}_medical`] || ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setFormData(prev => ({ ...prev, [`t${n}_medical`]: val }));
+                                            }}
+                                            className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all text-center outline-none ${formData[`t${n}_medical`]
+                                                    ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                                                    : 'bg-white text-slate-400 border-slate-200'
+                                                }`}
+                                        >
+                                            <option value="" className="text-slate-400 bg-white">بدون فحص</option>
+                                            <option value="د. إكرام" className="text-slate-900 bg-white">د. إكرام</option>
+                                            <option value="د. نبيل" className="text-slate-900 bg-white">د. نبيل</option>
+                                            <option value="د. جمعة" className="text-slate-900 bg-white">د. جمعة</option>
+                                        </select>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="flex gap-1 pt-2">

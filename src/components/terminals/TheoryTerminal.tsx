@@ -41,11 +41,11 @@ interface Student {
   t3_timbre_amount?: number | null;
   t4_timbre_amount?: number | null;
   t5_timbre_amount?: number | null;
-  t1_medical_paid?: boolean | null;
-  t2_medical_paid?: boolean | null;
-  t3_medical_paid?: boolean | null;
-  t4_medical_paid?: boolean | null;
-  t5_medical_paid?: boolean | null;
+  t1_medical_paid?: string | boolean | null;
+  t2_medical_paid?: string | boolean | null;
+  t3_medical_paid?: string | boolean | null;
+  t4_medical_paid?: string | boolean | null;
+  t5_medical_paid?: string | boolean | null;
   pratique_note?: string | null;
   registration_date: string;
   exam_date: string | null;
@@ -87,7 +87,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     t1: '', t2: '', t3: '', t4: '', t5: '',
     t1_date: null, t2_date: null, t3_date: null, t4_date: null, t5_date: null,
     t1_timbre: 0, t2_timbre: 0, t3_timbre: 0, t4_timbre: 0, t5_timbre: 0,
-    t1_medical: false, t2_medical: false, t3_medical: false, t4_medical: false, t5_medical: false,
+    t1_medical: '', t2_medical: '', t3_medical: '', t4_medical: '', t5_medical: '',
     pratiqueNote: '',
     registrationDate: new Date().toISOString().split('T')[0],
     examDate: '',
@@ -143,7 +143,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       t1: '', t2: '', t3: '', t4: '', t5: '',
       t1_date: null, t2_date: null, t3_date: null, t4_date: null, t5_date: null,
       t1_timbre: 0, t2_timbre: 0, t3_timbre: 0, t4_timbre: 0, t5_timbre: 0,
-      t1_medical: false, t2_medical: false, t3_medical: false, t4_medical: false, t5_medical: false,
+      t1_medical: '', t2_medical: '', t3_medical: '', t4_medical: '', t5_medical: '',
       pratiqueNote: '',
       registrationDate: new Date().toISOString().split('T')[0],
       examDate: '',
@@ -184,11 +184,11 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
         t3_timbre: isHeavy ? 0 : (Number(s.t3_timbre_amount) || 0),
         t4_timbre: isHeavy ? 0 : (Number(s.t4_timbre_amount) || 0),
         t5_timbre: isHeavy ? 0 : (Number(s.t5_timbre_amount) || 0),
-        t1_medical: isHeavy ? false : (s.t1_medical_paid || false),
-        t2_medical: isHeavy ? false : (s.t2_medical_paid || false),
-        t3_medical: isHeavy ? false : (s.t3_medical_paid || false),
-        t4_medical: isHeavy ? false : (s.t4_medical_paid || false),
-        t5_medical: isHeavy ? false : (s.t5_medical_paid || false),
+        t1_medical: isHeavy ? "" : (typeof s.t1_medical_paid === 'string' ? s.t1_medical_paid : (s.t1_medical_paid ? "نعم" : "")),
+        t2_medical: isHeavy ? "" : (typeof s.t2_medical_paid === 'string' ? s.t2_medical_paid : (s.t2_medical_paid ? "نعم" : "")),
+        t3_medical: isHeavy ? "" : (typeof s.t3_medical_paid === 'string' ? s.t3_medical_paid : (s.t3_medical_paid ? "نعم" : "")),
+        t4_medical: isHeavy ? "" : (typeof s.t4_medical_paid === 'string' ? s.t4_medical_paid : (s.t4_medical_paid ? "نعم" : "")),
+        t5_medical: isHeavy ? "" : (typeof s.t5_medical_paid === 'string' ? s.t5_medical_paid : (s.t5_medical_paid ? "نعم" : "")),
         pratiqueNote: s.pratique_note || '',
         registrationDate: s.registration_date ? s.registration_date.split('T')[0] : '',
         examDate: s.exam_date || '',
@@ -264,11 +264,11 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       t3_timbre_amount: Number(formData.t3_timbre || 0),
       t4_timbre_amount: Number(formData.t4_timbre || 0),
       t5_timbre_amount: Number(formData.t5_timbre || 0),
-      t1_medical_paid: formData.t1_medical || false,
-      t2_medical_paid: formData.t2_medical || false,
-      t3_medical_paid: formData.t3_medical || false,
-      t4_medical_paid: formData.t4_medical || false,
-      t5_medical_paid: formData.t5_medical || false,
+      t1_medical_paid: formData.t1_medical || null,
+      t2_medical_paid: formData.t2_medical || null,
+      t3_medical_paid: formData.t3_medical || null,
+      t4_medical_paid: formData.t4_medical || null,
+      t5_medical_paid: formData.t5_medical || null,
       pratique_note: formData.pratiqueNote,
       registration_date: formData.registrationDate,
       exam_date: formData.examDate || null

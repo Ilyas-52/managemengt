@@ -134,7 +134,8 @@ export default function ManagerTrucks({ selectedAgency }: Props) {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="بحث عن مترشح (الاسم أو صنف الرخصة)..."
-                            className="w-full pl-11 pr-10 py-3 bg-slate-100/50 border border-transparent rounded-full text-sm font-black outline-none focus:bg-white focus:border-[#0F5A3E] transition-all text-right"
+                            className="w-full pl-11 pr-10 py-3 bg-slate-100/80 border border-slate-200 rounded-full text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-[#0F5A3E] transition-all text-right"
+                            style={{ color: '#0f172a', fontWeight: 900, caretColor: '#0F5A3E' }}
                         />
                     </div>
 
