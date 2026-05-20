@@ -380,12 +380,7 @@ export default function ManagerTerminal() {
                                                 return (
                                                     <div key={item.id} className="w-full space-y-1">
                                                         <button
-                                                            onClick={() => {
-                                                                setShowExamsSubMenu(!showExamsSubMenu);
-                                                                if (!isExamsActive) {
-                                                                    setActiveSubTab('exams-car'); // default to B
-                                                                }
-                                                            }}
+                                                            onClick={() => setShowExamsSubMenu(!showExamsSubMenu)}
                                                             className={`w-full flex items-center justify-between p-3 rounded-xl text-[11px] font-black transition-all ${isExamsActive ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
                                                         >
                                                             <span className="flex items-center gap-3">
@@ -398,8 +393,8 @@ export default function ManagerTerminal() {
                                                                 <button
                                                                     onClick={() => setActiveSubTab('exams-car')}
                                                                     className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-car'
-                                                                            ? 'bg-slate-100 text-slate-800'
-                                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                                                        ? 'bg-slate-100 text-slate-800'
+                                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                                                         }`}
                                                                 >
                                                                     <span>🚗 امتحانات السيارات (Permis B)</span>
@@ -407,8 +402,8 @@ export default function ManagerTerminal() {
                                                                 <button
                                                                     onClick={() => setActiveSubTab('exams-truck')}
                                                                     className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-truck'
-                                                                            ? 'bg-slate-100 text-slate-800'
-                                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                                                        ? 'bg-slate-100 text-slate-800'
+                                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                                                         }`}
                                                                 >
                                                                     <span>🚛 امتحانات الوزن الثقيل</span>
@@ -619,12 +614,7 @@ export default function ManagerTerminal() {
                                                 return (
                                                     <div key={item.id} className="w-full space-y-1">
                                                         <button
-                                                            onClick={() => {
-                                                                setShowExamsSubMenu(!showExamsSubMenu);
-                                                                if (!isExamsActive) {
-                                                                    setActiveSubTab('exams-car'); // default to B
-                                                                }
-                                                            }}
+                                                            onClick={() => setShowExamsSubMenu(!showExamsSubMenu)}
                                                             className={`w-full flex items-center justify-between py-2 text-[11px] font-black ${isExamsActive ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}
                                                         >
                                                             <span className="flex items-center gap-2">🎓 {item.label}</span>
