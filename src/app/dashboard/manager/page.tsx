@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import NotificationDropdown, { Notification } from '@/components/NotificationDropdown';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -52,16 +52,35 @@ const days = [
     { id: 'saturday', label: 'السبت' }
 ];
 
+// ✅ Helper: Read persisted dashboard state from localStorage safely
+const readPersistedState = () => {
+    try {
+        const raw = typeof window !== 'undefined' ? window.localStorage.getItem('mgr_dashboard_state') : null;
+        return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+};
+
+// ✅ Helper: Write state to localStorage
+const writePersistedState = (patch: Record<string, any>) => {
+    try {
+        const current = readPersistedState();
+        window.localStorage.setItem('mgr_dashboard_state', JSON.stringify({ ...current, ...patch }));
+    } catch { /* silent */ }
+};
+
 export default function ManagerTerminal() {
     const [loading, setLoading] = useState(false);
-    const [activeStaff, setActiveStaff] = useState<string | null>(null);
-    const [activeSubTab, setActiveSubTab] = useState('emploi');
+    const [activeStaff, setActiveStaff] = useState<string | null>(() => readPersistedState().activeStaff ?? null);
+    const [activeSubTab, setActiveSubTab] = useState<string>(() => readPersistedState().activeSubTab ?? 'emploi');
     const [isIntroLoading, setIsIntroLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showHamzaSub, setShowHamzaSub] = useState(false);
-    const [activeNathariTab, setActiveNathariTab] = useState('auto');
+    const [activeNathariTab, setActiveNathariTab] = useState<string>(() => readPersistedState().activeNathariTab ?? 'auto');
     const [showNathariSub, setShowNathariSub] = useState(false);
-    const [showExamsSubMenu, setShowExamsSubMenu] = useState(false); // 🚀 مسمار الامتحانات الجديد
+    const [showExamsSubMenu, setShowExamsSubMenu] = useState(false);
+    const [showAgenciesMenu, setShowAgenciesMenu] = useState(false);
+    // ✅ NEW: Tracks which agency folder is expanded (can differ from selectedAgency — allows collapsing)
+    const [expandedAgencyId, setExpandedAgencyId] = useState<string | null>(() => readPersistedState().expandedAgencyId ?? null);
 
     const [students, setStudents] = useState<Student[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -74,9 +93,10 @@ export default function ManagerTerminal() {
     const [previousBalance, setPreviousBalance] = useState<number>(0);
     const [hamzaLogistics, setHamzaLogistics] = useState<Partial<VehicleLog>>({ mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
     const lastFetchedAgencyId = useRef<string | null>(null);
-
+    const [isMounted, setIsMounted] = useState(false);
     const [agencies, setAgencies] = useState<Agency[]>([]);
-    const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
+    // Bootstrap selectedAgency from persisted state — will be replaced with full object once agencies load
+    const [selectedAgency, setSelectedAgency] = useState<Agency | null>(() => readPersistedState().selectedAgency ?? null);
 
     // ✅ مسمار 01: منطق المدرسين ديال التطبيقي (Pratique)
     const practicalInstructor = useMemo(() => {
@@ -97,6 +117,9 @@ export default function ManagerTerminal() {
     }, [selectedAgency]);
 
     const { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification } = useNotifications(selectedAgency?.name || 'Boudinar');
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const fetchData = async () => {
         if (!selectedAgency) return;
@@ -219,9 +242,24 @@ export default function ManagerTerminal() {
             const { data } = await supabase.from('agencies').select('*');
             if (data && data.length > 0) {
                 setAgencies(data);
-                // نصيحة: بلاش ما تفرض عليه الوكالة الأولى أوتوماتيكياً إيلا بغيتي 
-                // المانجر يعزل هو راسو، ولكن إيلا مولفها خليها.
-                setSelectedAgency(data[0]);
+
+                // ✅ Restore persisted agency on refresh
+                const persisted = readPersistedState();
+                if (persisted.selectedAgency?.id) {
+                    const match = data.find((a: any) => a.id === persisted.selectedAgency.id);
+                    if (match) {
+                        setSelectedAgency(match);
+                        setExpandedAgencyId(persisted.expandedAgencyId ?? null);
+                    } else {
+                        // إيلا مالقاش الـ id القديم، يعزل بودينار كـ اختيار أول فـ الخلفية
+                        const boudinarMatch = data.find((a: any) => a.name.includes('Boudinar') || a.name.includes('بودينار'));
+                        setSelectedAgency(boudinarMatch || data[0]);
+                    }
+                } else {
+                    // إيلا تفتح السيت أول مرة، يعزل بودينار أوتوماتيك فـ الداتا
+                    const boudinarMatch = data.find((a: any) => a.name.includes('Boudinar') || a.name.includes('بودينار'));
+                    setSelectedAgency(boudinarMatch || data[0]);
+                }
             }
             setIsIntroLoading(false);
         };
@@ -230,14 +268,45 @@ export default function ManagerTerminal() {
 
     // 2️⃣ المسمار الثاني: جلب الداتا (التحكم الذكي)
     useEffect(() => {
-        // ✅ كنخدمو fetchData غير إيلا كانت الوكالة معزولة والصفحة واجدة
         if (!isIntroLoading && selectedAgency) {
             fetchData();
         }
-        // 🚀 المسمار المطرّق: حيدنا activeStaff من هنا!
-        // دبا fetchData غاتخدم غير فاش يتبدل التاريخ (selectedDate) 
-        // أو فاش يعزل المانجر وكالة أخرى (selectedAgency).
     }, [selectedDate, isIntroLoading, selectedAgency]);
+
+    // 3️⃣ Persist dashboard navigation state to localStorage + history
+    useEffect(() => {
+        if (isIntroLoading) return;
+        const state = {
+            activeStaff,
+            activeSubTab,
+            activeNathariTab,
+            selectedAgency,
+            expandedAgencyId,
+        };
+        writePersistedState(state);
+
+        // Push a history entry so the browser Back button can restore previous view
+        const historyState = { activeStaff, activeSubTab, activeNathariTab, agencyId: selectedAgency?.id, expandedAgencyId };
+        window.history.pushState(historyState, '');
+    }, [activeStaff, activeSubTab, activeNathariTab, selectedAgency, expandedAgencyId, isIntroLoading]);
+
+    // 4️⃣ Listen for browser Back/Forward button
+    useEffect(() => {
+        const handlePopState = (e: PopStateEvent) => {
+            const s = e.state;
+            if (!s) return;
+            if (s.activeStaff !== undefined) setActiveStaff(s.activeStaff);
+            if (s.activeSubTab) setActiveSubTab(s.activeSubTab);
+            if (s.activeNathariTab) setActiveNathariTab(s.activeNathariTab);
+            if (s.expandedAgencyId !== undefined) setExpandedAgencyId(s.expandedAgencyId);
+            if (s.agencyId && agencies.length > 0) {
+                const match = agencies.find(a => a.id === s.agencyId);
+                if (match) setSelectedAgency(match);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [agencies]);
 
     const financialStats = useMemo(() => {
         return students.reduce((acc, s) => {
@@ -259,6 +328,13 @@ export default function ManagerTerminal() {
             return fullName.includes(term);
         });
     }, [students, searchTerm]);
+    if (!isMounted) {
+        return (
+            <div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-900 font-black">
+                جاري التحميل...
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen !w-screen !flex bg-[#F3F4F6] font-black italic uppercase tracking-tighter overflow-x-hidden" dir="rtl">
@@ -267,195 +343,171 @@ export default function ManagerTerminal() {
             <aside className="hidden lg:flex fixed right-0 top-0 w-[280px] h-full bg-white border-l border-slate-200 flex-col p-8 z-[50] overflow-y-auto custom-scrollbar">
                 <h1 className="text-3xl text-[#0F5A3E] mb-6 italic font-black tracking-tighter leading-none">Younnes<br />.BO</h1>
 
-                <div className="mb-8 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                        {agencies.map(agency => (
-                            <button
-                                key={agency.id}
-                                onClick={() => {
-                                    setStudents([]); setHamzaLedger([]); setHamzaSchedule(null);
-                                    setHamzaAttendance([]); setExamResults([]);
-                                    setHamzaLogistics({ balance: 0, mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
-                                    setSelectedAgency(agency);
-                                    setActiveStaff(null); setShowNathariSub(false); setShowHamzaSub(false);
-                                }}
-                                className={`p-3 rounded-xl border-2 text-[11px] font-black italic transition-all ${selectedAgency?.id === agency.id ? 'bg-[#1dbf73] text-white border-[#1dbf73] shadow-md' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                            >
-                                {agency.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {selectedAgency && (
-                    <nav className="space-y-4">
-                        {/* Theory Menu */}
-                        <div className="space-y-2">
-                            <button
-                                onClick={() => {
-                                    // ✅ دبا كنخدمو بـ المتغير اللي صلحنا فيه السميات قبيلة
-                                    setActiveStaff(theoreticalInstructor);
-                                    setShowNathariSub(!showNathariSub);
-                                    setShowHamzaSub(false);
-                                    // حيدنا setActiveSubTab('theorie') باش ما يتبلوكاوش تابات التطبيقي
-                                }}
-                                className={`w-full text-right p-5 rounded-[25px] border-2 font-black italic transition-all flex items-center justify-between
-            ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white border-[#0F5A3E] shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
-                            >
-                                <span className="flex items-center gap-2">💼 الـنظري</span>
-                                <ChevronDown size={16} className={`transition-transform duration-300 ${showNathariSub ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {showNathariSub && (
-                                <div className="mr-4 pr-4 border-r-2 border-emerald-100 flex flex-col gap-1 py-2">
-                                    <button
-                                        onClick={() => {
-                                            setActiveNathariTab('auto');
-                                            setActiveStaff(theoreticalInstructor); // تأكيد
-                                        }}
-                                        className={`flex items-center gap-3 p-4 rounded-xl text-[11px] font-black ${activeNathariTab === 'auto' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400'}`}
-                                    >
-                                        <Car size={14} /> السيارات
-                                    </button>
-
-                                    {/* عرض الشاحنة فقط في بودينار */}
-                                    {selectedAgency?.name === 'Boudinar' && (
+                <div className="mb-8 space-y-4">
+                    {/* 1. 🏢 المدرسة (Collapsible Agency Selector) */}
+                    <div>
+                        <button
+                            onClick={() => setShowAgenciesMenu(!showAgenciesMenu)}
+                            className={`w-full text-right p-5 rounded-[25px] border-2 font-black italic transition-all flex items-center justify-between ${showAgenciesMenu ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                        >
+                            <span className="flex items-center gap-2">🏢 المدرسة</span>
+                            <ChevronDown size={16} className={`transition-transform duration-300 ${showAgenciesMenu ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showAgenciesMenu && (
+                            <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-2 py-2 mt-2">
+                                {agencies.map(agency => (
+                                    <div key={agency.id} className="flex flex-col gap-1">
                                         <button
                                             onClick={() => {
-                                                setActiveNathariTab('truck');
-                                                setActiveStaff(theoreticalInstructor);
+                                                // ✅ Toggle: clicking the same agency again collapses it
+                                                if (expandedAgencyId === agency.id) {
+                                                    setExpandedAgencyId(null);
+                                                    setShowNathariSub(false);
+                                                    setShowHamzaSub(false);
+                                                    return;
+                                                }
+                                                setStudents([]); setHamzaLedger([]); setHamzaSchedule(null);
+                                                setHamzaAttendance([]); setExamResults([]);
+                                                setHamzaLogistics({ balance: 0, mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
+                                                setSelectedAgency(agency);
+                                                setExpandedAgencyId(agency.id);
+                                                setActiveStaff(null); setShowNathariSub(false); setShowHamzaSub(false);
                                             }}
-                                            className={`flex items-center gap-3 p-4 rounded-xl text-[11px] font-black ${activeNathariTab === 'truck' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400'}`}
+                                            className={`p-4 rounded-xl text-[11px] font-black italic transition-all text-right flex items-center justify-between ${expandedAgencyId === agency.id ? 'bg-slate-100 text-slate-900 shadow-sm border border-slate-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
                                         >
-                                            <Truck size={14} /> الشاحنة
+                                            <span>🏢 {agency.name === 'Boudinar' ? 'بودينار' : agency.name}</span>
+                                            <ChevronDown size={12} className={`transition-transform duration-300 ${expandedAgencyId === agency.id ? 'rotate-180' : ''}`} />
                                         </button>
-                                    )}
 
-                                    <button
-                                        onClick={() => {
-                                            setActiveNathariTab('archive');
-                                            setActiveStaff(theoreticalInstructor);
-                                        }}
-                                        className={`flex items-center gap-3 p-4 rounded-xl text-[11px] font-black ${activeNathariTab === 'archive' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400'}`}
-                                    >
-                                        <FileText size={14} /> الأرشيف
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                        {/* Practical Menu */}
-                        <div className="space-y-2">
-                            <button
-                                onClick={() => {
-                                    setActiveStaff(practicalInstructor);
-                                    setShowHamzaSub(!showHamzaSub);
-                                    setShowNathariSub(false);
-                                    // ✅ مسمار: كنعطيو emploi كـ default باش ما تبقاش الباج بيضاء
-                                    const allowedTabs = selectedAgency?.name === 'Boudinar'
-                                        ? ['emploi', 'suivi', 'vehicule', 'cash', 'exams-car', 'exams-truck', 'gprs']
-                                        : ['emploi', 'suivi', 'vehicule', 'cash', 'exams'];
-                                    if (activeSubTab === 'theorie' || !allowedTabs.includes(activeSubTab)) {
-                                        setActiveSubTab('emploi');
-                                    }
-                                }}
-                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
-                                    ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent'}`}
-                            >
-                                <span className="flex items-center gap-2">🛰️ الـتطبيقي</span>
-                                <ChevronDown size={16} className={`transition-transform duration-300 ${showHamzaSub ? 'rotate-180' : ''}`} />
-                            </button>
-                            {showHamzaSub && (
-                                <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-1 py-2">
-                                    {[
-                                        { id: 'emploi', label: '📅 البرنامج', icon: Calendar },
-                                        { id: 'suivi', label: '✅ التتبع', icon: ClipboardCheck },
-                                        { id: 'vehicule', label: '🚗 السيارة', icon: Car },
-                                        { id: 'cash', label: '💰 الصندوق', icon: Coins },
-                                        { id: 'exams', label: '🎓 الامتحانات', icon: GraduationCap },
-                                        ...(selectedAgency?.name === 'Boudinar' ? [{ id: 'gprs', label: '🛰️ GPRS', icon: Gauge }] : [])
-                                    ].map(item => {
-                                        if (item.id === 'exams') {
-                                            if (selectedAgency?.name === 'Boudinar') {
-                                                const isExamsActive = activeSubTab === 'exams-car' || activeSubTab === 'exams-truck';
-                                                return (
-                                                    <div key={item.id} className="w-full space-y-1">
-                                                        <button
-                                                            onClick={() => setShowExamsSubMenu(!showExamsSubMenu)}
-                                                            className={`w-full flex items-center justify-between p-3 rounded-xl text-[11px] font-black transition-all ${isExamsActive ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
-                                                        >
-                                                            <span className="flex items-center gap-3">
-                                                                <GraduationCap size={14} /> {item.label}
-                                                            </span>
-                                                            <ChevronDown size={12} className={`transition-transform duration-300 ${showExamsSubMenu ? 'rotate-180' : ''}`} />
-                                                        </button>
-                                                        {showExamsSubMenu && (
-                                                            <div className="mr-3 pr-3 border-r border-slate-200 flex flex-col gap-1.5 py-1">
-                                                                <button
-                                                                    onClick={() => setActiveSubTab('exams-car')}
-                                                                    className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-car'
-                                                                        ? 'bg-slate-100 text-slate-800'
-                                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                                                                        }`}
-                                                                >
-                                                                    <span>🚗 امتحانات السيارات (Permis B)</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setActiveSubTab('exams-truck')}
-                                                                    className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-truck'
-                                                                        ? 'bg-slate-100 text-slate-800'
-                                                                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                                                                        }`}
-                                                                >
-                                                                    <span>🚛 امتحانات الوزن الثقيل</span>
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            } else {
-                                                const isExamsActive = activeSubTab === 'exams' || activeSubTab === 'exams-car';
-                                                return (
+                                        {/* Dropdown Folders ONLY for the expanded agency */}
+                                        {expandedAgencyId === agency.id && (
+                                            <div className="mr-4 pr-4 border-r-2 border-slate-200 flex flex-col gap-2 py-2">
+
+                                                {/* A. 📝 النظري */}
+                                                <div className="space-y-1">
                                                     <button
-                                                        key={item.id}
-                                                        onClick={() => setActiveSubTab('exams')}
-                                                        className={`w-full flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${isExamsActive ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                                                        onClick={() => {
+                                                            setActiveStaff(theoreticalInstructor);
+                                                            setShowNathariSub(!showNathariSub);
+                                                            setShowHamzaSub(false);
+                                                        }}
+                                                        className={`w-full text-right p-3 rounded-xl border font-black italic transition-all flex items-center justify-between ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white border-[#0F5A3E]' : 'bg-slate-50 text-slate-500 border-transparent'}`}
                                                     >
-                                                        <GraduationCap size={14} /> {item.label}
+                                                        <span className="flex items-center gap-2">📝 النظري</span>
+                                                        <ChevronDown size={12} className={`transition-transform duration-300 ${showNathariSub ? 'rotate-180' : ''}`} />
                                                     </button>
-                                                );
-                                            }
-                                        }
+                                                    {showNathariSub && (
+                                                        <div className="mr-3 pr-3 border-r-2 border-emerald-100 flex flex-col gap-1 py-1">
+                                                            <button onClick={() => { setActiveNathariTab('auto'); setActiveStaff(theoreticalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'auto' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                🚗 السيارات
+                                                            </button>
+                                                            {selectedAgency?.name === 'Boudinar' && (
+                                                                <button onClick={() => { setActiveNathariTab('truck'); setActiveStaff(theoreticalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'truck' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                    🚛 الشاحنات
+                                                                </button>
+                                                            )}
+                                                            <button onClick={() => { setActiveNathariTab('archive'); setActiveStaff(theoreticalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'archive' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                🗂️ الأرشيف
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                                        return (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => setActiveSubTab(item.id)} // تأكد بلي كتصيفط item.id (الفرنسي)
-                                                className={`flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${activeSubTab === item.id ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-                                            >
-                                                <item.icon size={14} /> {item.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        {/* 📅 Holiday Tracker Menu (المسمار الجديد) */}
-                        <div className="space-y-2 mt-4">
-                            <button
-                                onClick={() => {
-                                    setActiveStaff('holidays'); // غانعطيوه هاد الـ ID باش نعرفو بلي راه خدام فالعطل
-                                    setShowNathariSub(false);
-                                    setShowHamzaSub(false);
-                                }}
-                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
-            ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
-                            >
-                                <span className="flex items-center gap-2">🗓️ تتبع الـعطل</span>
-                                <Calendar size={16} />
-                            </button>
-                        </div>
-                    </nav>
-                )}
+                                                {/* B. 🏎️ التطبيقي */}
+                                                <div className="space-y-1">
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveStaff(practicalInstructor);
+                                                            setShowHamzaSub(!showHamzaSub);
+                                                            setShowNathariSub(false);
+                                                            if (activeSubTab === 'theorie' || activeSubTab === 'gprs' || activeSubTab === 'exams-truck') {
+                                                                setActiveSubTab('emploi');
+                                                            }
+                                                        }}
+                                                        className={`w-full flex items-center justify-between p-3 rounded-xl border font-black italic transition-all ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-transparent'}`}
+                                                    >
+                                                        <span className="flex items-center gap-2">🏎️ التطبيقي</span>
+                                                        <ChevronDown size={12} className={`transition-transform duration-300 ${showHamzaSub ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                    {showHamzaSub && (
+                                                        <div className="mr-3 pr-3 border-r-2 border-slate-200 flex flex-col gap-1 py-1">
+                                                            <button onClick={() => { setActiveSubTab('emploi'); setActiveStaff(practicalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'emploi' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                📅 البرنامج
+                                                            </button>
+                                                            <button onClick={() => { setActiveSubTab('vehicule'); setActiveStaff(practicalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'vehicule' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                🚗 السيارة
+                                                            </button>
+                                                            <button onClick={() => { setActiveSubTab('cash'); setActiveStaff(practicalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'cash' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                💰 الصندوق
+                                                            </button>
+                                                            <button onClick={() => { setActiveSubTab(selectedAgency?.name === 'Boudinar' ? 'exams-car' : 'exams'); setActiveStaff(practicalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${(activeSubTab === 'exams' || activeSubTab === 'exams-car') ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                📝 الامتحانات
+                                                            </button>
+                                                            <button onClick={() => { setActiveSubTab('suivi'); setActiveStaff(practicalInstructor); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'suivi' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                📊 التتبع
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. 🚛 امتحانات الوزن الثقيل (Global Master Tracking) */}
+                    <button
+                        onClick={() => {
+                            const boudinar = agencies.find(a => a.name === 'Boudinar');
+                            if (boudinar) setSelectedAgency(boudinar);
+                            setActiveStaff('Hamza');
+                            setActiveSubTab('exams-truck');
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                            ${activeSubTab === 'exams-truck' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                    >
+                        <span className="flex items-center gap-2">🚛 امتحانات الوزن الثقيل</span>
+                    </button>
+
+                    {/* 3. 🛰️ GPRS */}
+                    <button
+                        onClick={() => {
+                            const boudinar = agencies.find(a => a.name === 'Boudinar');
+                            if (boudinar) setSelectedAgency(boudinar);
+                            setActiveStaff('Hamza');
+                            setActiveSubTab('gprs');
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                            ${activeSubTab === 'gprs' ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-blue-50'}`}
+                    >
+                        <span className="flex items-center gap-2">🛰️ GPRS</span>
+                        <Gauge size={16} />
+                    </button>
+
+                    {/* 4. 📅 تتبع العطل */}
+                    <button
+                        onClick={() => {
+                            setActiveStaff('holidays');
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                            ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
+                    >
+                        <span className="flex items-center gap-2">📅 تتبع العطل</span>
+                        <Calendar size={16} />
+                    </button>
+                </div>
                 <div className="mt-auto pt-10 text-[9px] text-slate-300 font-bold text-center italic uppercase">v2.0 • Powered by Mahamran</div>
             </aside>
 
@@ -560,140 +612,174 @@ export default function ManagerTerminal() {
                             </button>
                         </div>
 
-                        <div className="mb-8 space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                                {agencies.map(agency => (
-                                    <button
-                                        key={agency.id}
-                                        onClick={() => { setSelectedAgency(agency); setActiveStaff(null); setIsSidebarOpen(false); }}
-                                        className={`p-3 rounded-xl border-2 text-[10px] font-black ${selectedAgency?.id === agency.id ? 'bg-[#1dbf73] text-white' : 'bg-slate-50 text-slate-500'}`}
-                                    >
-                                        {agency.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <nav className="space-y-4">
-                            <button
-                                onClick={() => { setActiveStaff(theoreticalInstructor); setShowNathariSub(!showNathariSub); setShowHamzaSub(false); }}
-                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white' : 'bg-slate-50'}`}
-                            >
-                                <span>💼 الـنظري</span>
-                                <ChevronDown size={16} />
-                            </button>
-                            {showNathariSub && (
-                                <div className="mr-4 pr-4 border-r-2 border-emerald-100 flex flex-col gap-2">
-                                    <button onClick={() => { setActiveNathariTab('auto'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">🚗 السيارات</button>
-                                    {selectedAgency?.name === 'Boudinar' && <button onClick={() => { setActiveNathariTab('truck'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">🚛 الشاحنة</button>}
-                                    <button onClick={() => { setActiveNathariTab('archive'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">📊 الأرشيف</button>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={() => { setActiveStaff(practicalInstructor); setShowHamzaSub(!showHamzaSub); setShowNathariSub(false); }}
-                                className={`w-full text-right p-5 rounded-2xl border-2 font-black italic flex justify-between ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white' : 'bg-slate-50'}`}
-                            >
-                                <span>🛰️ الـتطبيقي</span>
-                                <ChevronDown size={16} />
-                            </button>
-                            {showHamzaSub && (
-                                <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-2">
-                                    {/* ✅ المسمار المصحح: توحيد الـ IDs مع الـ Desktop */}
-                                    {/* ✅ مسمار 02: هاد الأوبجيكت كيخلي الكليكة تفهم بالفرنسي والمدير يشوف بالعربي */}
-                                    {[
-                                        { id: 'emploi', label: '📅 البرنامج' },
-                                        { id: 'suivi', label: '✅ التتبع' },
-                                        { id: 'vehicule', label: '🚗 السيارة' },
-                                        { id: 'cash', label: '💰 الصندوق' },
-                                        { id: 'exams', label: '🎓 الامتحانات' }
-                                    ].map(item => {
-                                        if (item.id === 'exams') {
-                                            if (selectedAgency?.name === 'Boudinar') {
-                                                const isExamsActive = activeSubTab === 'exams-car' || activeSubTab === 'exams-truck';
-                                                return (
-                                                    <div key={item.id} className="w-full space-y-1">
-                                                        <button
-                                                            onClick={() => setShowExamsSubMenu(!showExamsSubMenu)}
-                                                            className={`w-full flex items-center justify-between py-2 text-[11px] font-black ${isExamsActive ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}
-                                                        >
-                                                            <span className="flex items-center gap-2">🎓 {item.label}</span>
-                                                            <ChevronDown size={12} className={`transition-transform duration-300 ${showExamsSubMenu ? 'rotate-180' : ''}`} />
-                                                        </button>
-                                                        {showExamsSubMenu && (
-                                                            <div className="mr-3 pr-3 border-r border-slate-200 flex flex-col gap-2 py-1">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setActiveSubTab('exams-car');
-                                                                        setIsSidebarOpen(false);
-                                                                    }}
-                                                                    className={`text-right py-1.5 text-[10px] font-black ${activeSubTab === 'exams-car' ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}
-                                                                >
-                                                                    🚗 امتحانات السيارات (Permis B)
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setActiveSubTab('exams-truck');
-                                                                        setIsSidebarOpen(false);
-                                                                    }}
-                                                                    className={`text-right py-1.5 text-[10px] font-black ${activeSubTab === 'exams-truck' ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}
-                                                                >
-                                                                    🚛 امتحانات الوزن الثقيل
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            } else {
-                                                const isExamsActive = activeSubTab === 'exams' || activeSubTab === 'exams-car';
-                                                return (
-                                                    <button
-                                                        key={item.id}
-                                                        onClick={() => {
-                                                            setActiveSubTab('exams');
-                                                            setIsSidebarOpen(false);
-                                                        }}
-                                                        className={`text-right py-2 text-[11px] font-black ${isExamsActive ? 'text-slate-900 font-black' : 'text-slate-500'}`}
-                                                    >
-                                                        🎓 {item.label}
-                                                    </button>
-                                                );
-                                            }
-                                        }
-
-                                        return (
-                                            <button
-                                                key={item.id}
-                                                onClick={() => {
-                                                    setActiveSubTab(item.id); // كيعطي 'emploi' للسيستيم
-                                                    setIsSidebarOpen(false);   // كيسد المينيو ف التابلت
-                                                }}
-                                                className={`text-right py-2 text-[11px] font-black capitalize ${activeSubTab === item.id ? 'text-slate-900 font-black' : 'text-slate-500'}`}
-                                            >
-                                                {item.label}
-                                            </button>
-                                        );
-                                    })}
-                                    {selectedAgency?.name === 'Boudinar' && <button onClick={() => { setActiveSubTab('gprs'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">🛰️ GPRS</button>}
-                                </div>
-                            )}
-                            {/* 📅 Holiday Tracker Menu (المسمار المصحح) */}
-                            <div className="space-y-2 mt-4">
+                        <div className="mb-8 space-y-4">
+                            {/* 1. 🏢 المدرسة (Collapsible Agency Selector) */}
+                            <div>
                                 <button
-                                    onClick={() => {
-                                        setActiveStaff('holidays');
-                                        setShowNathariSub(false);
-                                        setShowHamzaSub(false);
-                                        setIsSidebarOpen(false); // ✅ المسمار: هاد السطر هو اللي كيسد المينيو باش تبان الباج
-                                    }}
-                                    className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
-                                        ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
+                                    onClick={() => setShowAgenciesMenu(!showAgenciesMenu)}
+                                    className={`w-full text-right p-5 rounded-[25px] border-2 font-black italic flex items-center justify-between ${showAgenciesMenu ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
                                 >
-                                    <span className="flex items-center gap-2">🗓️ تتبع الـعطل</span>
-                                    <Calendar size={16} />
+                                    <span className="flex items-center gap-2">🏢 المدرسة</span>
+                                    <ChevronDown size={16} className={`transition-transform duration-300 ${showAgenciesMenu ? 'rotate-180' : ''}`} />
                                 </button>
+                                {showAgenciesMenu && (
+                                    <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-2 py-2 mt-2">
+                                        {agencies.map(agency => (
+                                            <div key={agency.id} className="flex flex-col gap-1">
+                                                <button
+                                                    onClick={() => {
+                                                        // ✅ Toggle: clicking the same agency again collapses it
+                                                        if (expandedAgencyId === agency.id) {
+                                                            setExpandedAgencyId(null);
+                                                            setShowNathariSub(false);
+                                                            setShowHamzaSub(false);
+                                                            return;
+                                                        }
+                                                        setStudents([]); setHamzaLedger([]); setHamzaSchedule(null);
+                                                        setHamzaAttendance([]); setExamResults([]);
+                                                        setHamzaLogistics({ balance: 0, mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
+                                                        setSelectedAgency(agency);
+                                                        setExpandedAgencyId(agency.id);
+                                                        setActiveStaff(null); setShowNathariSub(false); setShowHamzaSub(false);
+                                                    }}
+                                                    className={`p-4 rounded-xl text-[11px] font-black italic transition-all text-right flex items-center justify-between ${expandedAgencyId === agency.id ? 'bg-slate-100 text-slate-900 shadow-sm border border-slate-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                                                >
+                                                    <span>🏢 {agency.name === 'Boudinar' ? 'بودينار' : agency.name}</span>
+                                                    <ChevronDown size={12} className={`transition-transform duration-300 ${expandedAgencyId === agency.id ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                {/* Dropdown Folders ONLY for the expanded agency */}
+                                                {expandedAgencyId === agency.id && (
+                                                    <div className="mr-4 pr-4 border-r-2 border-slate-200 flex flex-col gap-2 py-2">
+
+                                                        {/* A. 📝 النظري */}
+                                                        <div className="space-y-1">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setActiveStaff(theoreticalInstructor);
+                                                                    setShowNathariSub(!showNathariSub);
+                                                                    setShowHamzaSub(false);
+                                                                }}
+                                                                className={`w-full text-right p-3 rounded-xl border font-black italic transition-all flex items-center justify-between ${(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase()) ? 'bg-[#0F5A3E] text-white border-[#0F5A3E]' : 'bg-slate-50 text-slate-500 border-transparent'}`}
+                                                            >
+                                                                <span className="flex items-center gap-2">📝 النظري</span>
+                                                                <ChevronDown size={12} className={`transition-transform duration-300 ${showNathariSub ? 'rotate-180' : ''}`} />
+                                                            </button>
+                                                            {showNathariSub && (
+                                                                <div className="mr-3 pr-3 border-r-2 border-emerald-100 flex flex-col gap-1 py-1">
+                                                                    <button onClick={() => { setActiveNathariTab('auto'); setActiveStaff(theoreticalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'auto' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        🚗 السيارات
+                                                                    </button>
+                                                                    {selectedAgency?.name === 'Boudinar' && (
+                                                                        <button onClick={() => { setActiveNathariTab('truck'); setActiveStaff(theoreticalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'truck' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                            🚛 الشاحنات
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={() => { setActiveNathariTab('archive'); setActiveStaff(theoreticalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeNathariTab === 'archive' ? 'bg-[#0F5A3E]/10 text-[#0F5A3E]' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        🗂️ الأرشيف
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* B. 🏎️ التطبيقي */}
+                                                        <div className="space-y-1">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setActiveStaff(practicalInstructor);
+                                                                    setShowHamzaSub(!showHamzaSub);
+                                                                    setShowNathariSub(false);
+                                                                    if (activeSubTab === 'theorie' || activeSubTab === 'gprs' || activeSubTab === 'exams-truck') {
+                                                                        setActiveSubTab('emploi');
+                                                                    }
+                                                                }}
+                                                                className={`w-full flex items-center justify-between p-3 rounded-xl border font-black italic transition-all ${(activeStaff?.trim().toLowerCase() === practicalInstructor.toLowerCase()) ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-transparent'}`}
+                                                            >
+                                                                <span className="flex items-center gap-2">🏎️ التطبيقي</span>
+                                                                <ChevronDown size={12} className={`transition-transform duration-300 ${showHamzaSub ? 'rotate-180' : ''}`} />
+                                                            </button>
+                                                            {showHamzaSub && (
+                                                                <div className="mr-3 pr-3 border-r-2 border-slate-200 flex flex-col gap-1 py-1">
+                                                                    <button onClick={() => { setActiveSubTab('emploi'); setActiveStaff(practicalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'emploi' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        📅 البرنامج
+                                                                    </button>
+                                                                    <button onClick={() => { setActiveSubTab('vehicule'); setActiveStaff(practicalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'vehicule' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        🚗 السيارة
+                                                                    </button>
+                                                                    <button onClick={() => { setActiveSubTab('cash'); setActiveStaff(practicalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'cash' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        💰 الصندوق
+                                                                    </button>
+                                                                    <button onClick={() => { setActiveSubTab(selectedAgency?.name === 'Boudinar' ? 'exams-car' : 'exams'); setActiveStaff(practicalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${(activeSubTab === 'exams' || activeSubTab === 'exams-car') ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        📝 الامتحانات
+                                                                    </button>
+                                                                    <button onClick={() => { setActiveSubTab('suivi'); setActiveStaff(practicalInstructor); setIsSidebarOpen(false); }} className={`flex items-center gap-2 p-3 rounded-lg text-[10px] font-black transition-all ${activeSubTab === 'suivi' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                                                        📊 التتبع
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        </nav>
+
+                            {/* 2. 🚛 امتحانات الوزن الثقيل (Global Master Tracking) */}
+                            <button
+                                onClick={() => {
+                                    const boudinar = agencies.find(a => a.name === 'Boudinar');
+                                    if (boudinar) setSelectedAgency(boudinar);
+                                    setActiveStaff('Hamza');
+                                    setActiveSubTab('exams-truck');
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                                    ${activeSubTab === 'exams-truck' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                            >
+                                <span className="flex items-center gap-2">🚛 امتحانات الوزن الثقيل</span>
+                            </button>
+
+                            {/* 3. 🛰️ GPRS */}
+                            <button
+                                onClick={() => {
+                                    const boudinar = agencies.find(a => a.name === 'Boudinar');
+                                    if (boudinar) setSelectedAgency(boudinar);
+                                    setActiveStaff('Hamza');
+                                    setActiveSubTab('gprs');
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                                    ${activeSubTab === 'gprs' ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-blue-50'}`}
+                            >
+                                <span className="flex items-center gap-2">🛰️ GPRS</span>
+                                <Gauge size={16} />
+                            </button>
+
+                            {/* 4. 📅 تتبع العطل */}
+                            <button
+                                onClick={() => {
+                                    setActiveStaff('holidays');
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+                                    ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
+                            >
+                                <span className="flex items-center gap-2">📅 تتبع العطل</span>
+                                <Calendar size={16} />
+                            </button>
+                        </div>
                     </aside>
                 </div>
             )}
