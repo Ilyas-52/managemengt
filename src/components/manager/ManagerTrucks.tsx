@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
     AlertTriangle, Timer, Wallet, TrendingUp, CheckCircle2,
     Calendar, Truck, MapPin, Trash2, Save, Activity, User, CreditCard,
-    Search, ChevronDown, UserPlus, X
+    Search, ChevronDown, UserPlus, X, GraduationCap, Trophy, AlertCircle, History
 } from 'lucide-react';
 import { generateWeeklyBilan } from './WeeklyTrucksReport';
 
@@ -29,11 +29,50 @@ interface TruckFormData {
     [key: string]: string | number | boolean | undefined;
 }
 
-interface Props {
-    selectedAgency?: Agency | null;
+interface HeavyExamData {
+    theory_date: string;
+    theory_result: 'admis' | 'echoue' | '';
+    theory_result_2: 'admis' | 'echoue' | '';
+    practical_date: string;
+    practical_result: 'admis' | 'echoue' | '';
+    practical_result_2: 'admis' | 'echoue' | '';
 }
 
-export default function ManagerTrucks({ selectedAgency }: Props) {
+export function parseHeavyExamData(student: any): HeavyExamData {
+    const defaultData: HeavyExamData = {
+        theory_date: student.exam_date || '',
+        theory_result: '',
+        theory_result_2: '',
+        practical_date: '',
+        practical_result: '',
+        practical_result_2: ''
+    };
+    if (!student.notes) return defaultData;
+    const match = student.notes.match(/\[EXAM_DATA:({.*?})\]/);
+    if (match) {
+        try {
+            const parsed = JSON.parse(match[1]);
+            return {
+                theory_date: parsed.theory_date || student.exam_date || '',
+                theory_result: parsed.theory_result || '',
+                theory_result_2: parsed.theory_result_2 || '',
+                practical_date: parsed.practical_date || '',
+                practical_result: parsed.practical_result || '',
+                practical_result_2: parsed.practical_result_2 || ''
+            };
+        } catch (e) {
+            console.error("Error parsing EXAM_DATA:", e);
+        }
+    }
+    return defaultData;
+}
+
+interface Props {
+    selectedAgency?: Agency | null;
+    viewMode?: 'registration' | 'exams';
+}
+
+export default function ManagerTrucks({ selectedAgency, viewMode = 'registration' }: Props) {
     const [fetching, setFetching] = useState(true);
     const [students, setStudents] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -64,16 +103,31 @@ export default function ManagerTrucks({ selectedAgency }: Props) {
         fetchAgencies();
     }, []);
 
-    const getAgencyName = (agenceId: string | null) => {
-        if (!agenceId) return 'المقر الرئيسي';
-        const agency = agencies.find(a => a.id === agenceId);
-        return agency ? agency.name : 'المقر الرئيسي';
+    const getAgencyName = (agenceId: string | null | undefined) => {
+        if (!agenceId) return 'مؤسسة يونس ';
+        const agency = agencies.find(a => String(a.id) === String(agenceId));
+        return agency ? agency.name : 'مؤسسة يونس ';
     };
 
+    // 🚀 المسمار المطرّق: real-time subscription لـ truck_students
     useEffect(() => {
-        if (selectedAgency?.id) {
-            fetchStudents();
-        }
+        if (!selectedAgency?.id) return;
+        fetchStudents();
+
+        const channel = supabase.channel(`truck-students-sync-${selectedAgency.id}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'truck_students',
+                filter: selectedAgency.name !== 'Boudinar' ? `agence_id=eq.${selectedAgency.id}` : undefined
+            }, () => {
+                fetchStudents();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [selectedAgency]);
 
     const handleDelete = async (id: string) => {
@@ -97,6 +151,215 @@ export default function ManagerTrucks({ selectedAgency }: Props) {
         const licenseType = (s.license_type || '').toLowerCase();
         return fullName.includes(query) || licenseType.includes(query);
     });
+
+    const examStudents = useMemo(() => {
+        return students
+            .filter(s => {
+                const examData = parseHeavyExamData(s);
+                const hasDate = (examData.theory_date && examData.theory_date.trim() !== '') ||
+                    (examData.practical_date && examData.practical_date.trim() !== '');
+                return hasDate;
+            })
+            .sort((a, b) => {
+                const dateA = a.exam_date || '';
+                const dateB = b.exam_date || '';
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return new Date(dateA).getTime() - new Date(dateB).getTime();
+            });
+    }, [students]);
+
+    const filteredExamStudents = useMemo(() => {
+        const query = searchTerm.toLowerCase().trim();
+        if (!query) return examStudents;
+        return examStudents.filter(s => {
+            const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+            const licenseType = (s.license_type || '').toLowerCase();
+            return fullName.includes(query) || licenseType.includes(query);
+        });
+    }, [examStudents, searchTerm]);
+
+    if (viewMode === 'exams') {
+        const examStats = examStudents.reduce((acc, s) => {
+            acc.scheduled++;
+            const examData = parseHeavyExamData(s);
+
+            const isTheory1Failed = examData.theory_result === 'echoue';
+            const isTheory2Passed = examData.theory_result_2 === 'admis';
+            const isTheory2Failed = examData.theory_result_2 === 'echoue';
+            const isEliminatedTheory = isTheory1Failed && isTheory2Failed;
+            const usedLifeInTheory = isTheory1Failed && isTheory2Passed;
+            const isTheoryPassed = examData.theory_result === 'admis' || isTheory2Passed;
+            const isPracticalPassed = examData.practical_result === 'admis' || examData.practical_result_2 === 'admis';
+            const isEliminatedPractical = usedLifeInTheory && examData.practical_result === 'echoue';
+            const isWinner = isTheoryPassed && isPracticalPassed;
+            const isTotalFailure = isEliminatedTheory || isEliminatedPractical;
+
+            if (isWinner) {
+                acc.passed++;
+            } else if (isTotalFailure) {
+                acc.failed++;
+            }
+            return acc;
+        }, { scheduled: 0, passed: 0, failed: 0 });
+
+        return (
+            <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-4 space-y-10 pb-40 font-black italic text-right uppercase tracking-tighter overflow-x-hidden" dir="rtl">
+                {/* Header */}
+                <div className="sticky top-0 z-[150] w-full pt-2">
+                    <div className="bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl rounded-[2.5rem] px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white shrink-0">
+                                <GraduationCap size={18} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black italic uppercase leading-none">{selectedAgency?.name || 'وكالة'}</span>
+                                <h1 className="text-lg font-black text-slate-900 mt-1">تتبع امتحانات الوزن الثقيل</h1>
+                            </div>
+                        </div>
+
+                        {/* Search Input */}
+                        <div className="w-full md:flex-1 md:max-w-md relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"><Search size={16} /></div>
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="بحث عن مترشح (الاسم أو الصنف)..."
+                                className="w-full pl-11 pr-10 py-3 bg-slate-100/80 border border-slate-200 rounded-full text-sm font-black text-slate-900 outline-none focus:bg-white focus:border-[#0F5A3E] transition-all text-right"
+                                style={{ color: '#0f172a', fontWeight: 900, caretColor: '#0F5A3E' }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Exam Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in duration-700">
+                    <div className="bg-white border-2 border-slate-100 rounded-[25px] p-6 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-[9px] text-slate-400">الامتحانات المبرمجة</p>
+                            <h2 className="text-2xl text-slate-900 leading-none">{examStats.scheduled} مترشح</h2>
+                        </div>
+                        <Calendar size={24} className="text-slate-200" />
+                    </div>
+                    <div className="bg-white border-2 border-emerald-100 rounded-[25px] p-6 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-[9px] text-emerald-600">الناجحون</p>
+                            <h2 className="text-2xl text-emerald-600 leading-none">{examStats.passed} ناجح</h2>
+                        </div>
+                        <CheckCircle2 size={24} className="text-emerald-500" />
+                    </div>
+                    <div className="bg-white border-2 border-rose-100 rounded-[25px] p-6 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-[9px] text-rose-400">الراسبون</p>
+                            <h2 className="text-2xl text-rose-600 leading-none">{examStats.failed} راسب</h2>
+                        </div>
+                        <AlertTriangle size={24} className="text-rose-500" />
+                    </div>
+                </div>
+
+                {/* ── شبكة النتائج المفلترة (Twin of ManagerExams.tsx) ── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-1000">
+                    {filteredExamStudents.map(s => {
+                        const examData = parseHeavyExamData(s);
+
+                        const isTheory1Failed = examData.theory_result === 'echoue';
+                        const isTheory2Passed = examData.theory_result_2 === 'admis';
+                        const isTheory2Failed = examData.theory_result_2 === 'echoue';
+                        const isTheoryPassed = examData.theory_result === 'admis' || isTheory2Passed;
+                        const usedLifeInTheory = isTheory1Failed && isTheory2Passed;
+                        const isEliminatedTheory = isTheory1Failed && isTheory2Failed;
+                        const isEliminatedPractical = usedLifeInTheory && examData.practical_result === 'echoue';
+                        const isTotalFailure = isEliminatedTheory || isEliminatedPractical;
+                        const isWinner = isTheoryPassed && (examData.practical_result === 'admis' || examData.practical_result_2 === 'admis');
+
+                        const name = `${s.first_name} ${s.last_name}`;
+
+                        return (
+                            <div key={s.id}
+                                className={`group relative border-2 transition-all duration-500 rounded-[35px] bg-white overflow-hidden 
+                                    ${isWinner ? 'border-emerald-500 shadow-xl' :
+                                        isTotalFailure ? 'border-red-500 opacity-90' : 'border-slate-100 shadow-sm'}`}
+                            >
+                                {/* ── HEADER ── */}
+                                <div className={`px-6 py-5 flex flex-col gap-3 border-b transition-colors 
+                                    ${isWinner ? 'bg-emerald-50' : isTotalFailure ? 'bg-red-50' : 'bg-slate-50'}`}>
+
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-xl ${isWinner ? 'bg-emerald-500 text-white' : isTotalFailure ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                <User size={16} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[13px] font-black text-slate-900 uppercase tracking-tight">{name}</span>
+                                                <div className="flex gap-2 mt-1">
+                                                    <span className="bg-slate-900 text-white text-[9px] px-2 py-0.5 rounded-md font-black uppercase italic">
+                                                        Permis {s.license_type || 'C'}
+                                                    </span>
+                                                    <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-md font-black shadow-sm">
+                                                        الوكالة: {getAgencyName(s.agence_id)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {isWinner ? (
+                                            <Trophy size={14} className="text-emerald-500 animate-pulse" />
+                                        ) : isTotalFailure ? (
+                                            <AlertCircle size={14} className="text-red-500" />
+                                        ) : null}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 bg-white/60 w-fit px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+                                        <Calendar size={12} className="text-[#0F5A3E]" />
+                                        <span className="text-[10px] font-black text-slate-700">موعد الامتحان: {examData.theory_date || 'غير محدد'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="p-5 space-y-4">
+                                    {/* 1. نتائج النظري */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-1 text-[9px] uppercase font-black text-slate-400 px-1">
+                                            <History size={10} /> مسار النظري
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className={`p-2 rounded-2xl border text-center ${examData.theory_result === 'admis' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : examData.theory_result === 'echoue' ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                                                <p className="text-[10px] font-black">{examData.theory_result === 'admis' ? 'ناجح' : examData.theory_result === 'echoue' ? 'راسب' : '---'}</p>
+                                            </div>
+                                            <div className={`p-2 rounded-2xl border text-center ${examData.theory_result_2 === 'admis' ? 'bg-blue-50 border-blue-200 text-blue-700' : examData.theory_result_2 === 'echoue' ? 'bg-orange-50 border-orange-100 text-orange-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                                                <p className="text-[10px] font-black">{examData.theory_result_2 === 'admis' ? 'ناجح' : examData.theory_result_2 === 'echoue' ? 'راسب' : '---'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. نتائج التطبيقي */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-1 text-[9px] uppercase font-black text-slate-400 px-1">
+                                            <History size={10} /> مسار التطبيقي
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className={`p-2 rounded-2xl border text-center ${examData.practical_result === 'admis' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : examData.practical_result === 'echoue' ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                                                <p className="text-[10px] font-black">{examData.practical_result === 'admis' ? 'ناجح' : examData.practical_result === 'echoue' ? 'راسب' : '---'}</p>
+                                            </div>
+                                            <div className={`p-2 rounded-2xl border text-center ${examData.practical_result_2 === 'admis' ? 'bg-blue-50 border-blue-200 text-blue-700' : examData.practical_result_2 === 'echoue' ? 'bg-orange-50 border-orange-100 text-orange-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                                                <p className="text-[10px] font-black">{examData.practical_result_2 === 'admis' ? 'ناجح' : examData.practical_result_2 === 'echoue' ? 'راسب' : '---'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {filteredExamStudents.length === 0 && (
+                        <div className="col-span-full py-20 text-center bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
+                            <p className="text-slate-400 italic">لا يوجد امتحانات مبرمجة حالياً</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         /* ✅ التعديل: نقصنا الـ Padding فـ الشاشات الكبيرة وزدنا max-w باش يبقى الوسط */
@@ -501,7 +764,7 @@ export default function ManagerTrucks({ selectedAgency }: Props) {
                                                 )}
 
                                                 <span className={`px-5 py-2.5 rounded-2xl text-[12px] font-black shadow-sm ${rest === 0 ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-rose-50 text-rose-600 border-2 border-rose-100'}`}>
-                                                    {rest === 0 ? 'خالص ✓' : `${rest} DH`}
+                                                    {rest === 0 ? 'خ خالص ✓' : `${rest} DH`}
                                                 </span>
 
                                                 {/* بوطون الحذف */}

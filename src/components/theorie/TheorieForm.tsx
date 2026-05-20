@@ -60,8 +60,14 @@ export default function TheorieForm({
                 newData[`${key}_date`] = new Date().toISOString().split('T')[0];
             }
 
-            if (key === 'licenseType' && value === 'A') {
-                newData.trainingLocation = 'YOUNESS';
+            if (key === 'licenseType') {
+                if (value === 'A') {
+                    newData.trainingLocation = 'YOUNESS';
+                } else if (['C', 'D', 'E'].includes(value)) {
+                    if (prev.trainingLocation === 'YOUNESS') {
+                        newData.trainingLocation = 'lboubsi';
+                    }
+                }
             }
 
             return newData;
@@ -105,7 +111,6 @@ export default function TheorieForm({
                             <select value={formData.trainingLocation || 'lboubsi'} onChange={handleInputChange('trainingLocation')} className="w-full h-14 px-4 border border-slate-300 rounded-xl focus:border-emerald-500 outline-none text-center font-bold text-slate-900 text-base">
                                 <option value="lboubsi">البوبسي</option>
                                 <option value="sa3lity">السعليتي</option>
-                                <option value="YOUNESS">مؤسسة يونس</option>
                             </select>
                         </div>
                     ) : (
@@ -208,8 +213,8 @@ export default function TheorieForm({
                                                 setFormData(prev => ({ ...prev, [`t${n}_medical`]: val }));
                                             }}
                                             className={`w-full h-9 rounded-lg text-[10px] font-black border-2 transition-all text-center outline-none ${formData[`t${n}_medical`]
-                                                    ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                                                    : 'bg-white text-slate-400 border-slate-200'
+                                                ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
+                                                : 'bg-white text-slate-400 border-slate-200'
                                                 }`}
                                         >
                                             <option value="" className="text-slate-400 bg-white">بدون فحص</option>

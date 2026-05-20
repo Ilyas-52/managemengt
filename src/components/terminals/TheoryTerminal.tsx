@@ -2,10 +2,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import TheorieHeader from '@/components/theorie/TheorieHeader';
-import { Printer } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const PdfButton = dynamic(() => import('@/components/theorie/trancheButton'), {
+import { Printer, Search, Save, User, CheckCircle2, Check, X, GraduationCap, Car, LockIcon, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic'; const PdfButton = dynamic(() => import('@/components/theorie/trancheButton'), {
   ssr: false,
   loading: () => <div className="animate-pulse bg-slate-200 h-10 w-32 rounded-xl"></div>
 });
@@ -71,10 +70,396 @@ interface TheoryTerminalProps {
   agenceName: string;
 }
 
+export interface HeavyExamData {
+  theory_date: string;
+  theory_result: 'admis' | 'echoue' | '';
+  theory_result_2: 'admis' | 'echoue' | '';
+  practical_date: string;
+  practical_result: 'admis' | 'echoue' | '';
+  practical_result_2: 'admis' | 'echoue' | '';
+}
+
+export function parseHeavyExamData(student: any): HeavyExamData {
+  const defaultData: HeavyExamData = {
+    theory_date: student.exam_date || '',
+    theory_result: '',
+    theory_result_2: '',
+    practical_date: '',
+    practical_result: '',
+    practical_result_2: ''
+  };
+  if (!student.notes) return defaultData;
+  const match = student.notes.match(/\[EXAM_DATA:({.*?})\]/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      return {
+        theory_date: parsed.theory_date || student.exam_date || '',
+        theory_result: parsed.theory_result || '',
+        theory_result_2: parsed.theory_result_2 || '',
+        practical_date: parsed.practical_date || '',
+        practical_result: parsed.practical_result || '',
+        practical_result_2: parsed.practical_result_2 || ''
+      };
+    } catch (e) {
+      console.error("Error parsing EXAM_DATA:", e);
+    }
+  }
+  return defaultData;
+}
+
+export function serializeHeavyExamData(existingNotes: string | null | undefined, data: HeavyExamData): string {
+  const cleanNotes = (existingNotes || '').replace(/\[EXAM_DATA:.*?\]/g, '').trim();
+  const jsonStr = JSON.stringify(data);
+  return `[EXAM_DATA:${jsonStr}] ${cleanNotes}`.trim();
+}
+
+function StudentExamCard({
+  student,
+  onSave,
+  getAgencyName
+}: {
+  student: Student;
+  onSave: (id: string, data: HeavyExamData) => Promise<void>;
+  getAgencyName: (id: string | null | undefined) => string;
+}) {
+  const examData = useMemo(() => parseHeavyExamData(student), [student]);
+
+  const [theoryDate, setTheoryDate] = useState(examData.theory_date);
+  const [theoryResult, setTheoryResult] = useState(examData.theory_result);
+  const [theoryResult2, setTheoryResult2] = useState(examData.theory_result_2);
+
+  const [practicalDate, setPracticalDate] = useState(examData.practical_date);
+  const [practicalResult, setPracticalResult] = useState(examData.practical_result);
+  const [practicalResult2, setPracticalResult2] = useState(examData.practical_result_2);
+
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fresh = parseHeavyExamData(student);
+    setTheoryDate(fresh.theory_date);
+    setTheoryResult(fresh.theory_result);
+    setTheoryResult2(fresh.theory_result_2);
+    setPracticalDate(fresh.practical_date);
+    setPracticalResult(fresh.practical_result);
+    setPracticalResult2(fresh.practical_result_2);
+  }, [student]);
+
+  const hasChanges = theoryDate !== examData.theory_date ||
+    theoryResult !== examData.theory_result ||
+    theoryResult2 !== examData.theory_result_2 ||
+    practicalDate !== examData.practical_date ||
+    practicalResult !== examData.practical_result ||
+    practicalResult2 !== examData.practical_result_2;
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSave(student.id, {
+        theory_date: theoryDate,
+        theory_result: theoryResult,
+        theory_result_2: theoryResult2,
+        practical_date: practicalDate,
+        practical_result: practicalResult,
+        practical_result_2: practicalResult2
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLocalUpdate = (field: string, value: any) => {
+    if (field === 'theory_result') {
+      setTheoryResult(value);
+      if (value !== 'echoue') {
+        setTheoryResult2('');
+      }
+      if (value !== 'admis') {
+        setPracticalDate('');
+        setPracticalResult('');
+        setPracticalResult2('');
+      }
+    } else if (field === 'theory_result_2') {
+      setTheoryResult2(value);
+      if (value !== 'admis') {
+        setPracticalDate('');
+        setPracticalResult('');
+        setPracticalResult2('');
+      }
+    } else if (field === 'practical_result') {
+      setPracticalResult(value);
+      if (value !== 'echoue') {
+        setPracticalResult2('');
+      }
+    } else if (field === 'practical_result_2') {
+      setPracticalResult2(value);
+    } else if (field === 'theory_date') {
+      setTheoryDate(value);
+    } else if (field === 'practical_date') {
+      setPracticalDate(value);
+    }
+  };
+
+  const totalFailures =
+    (theoryResult === 'echoue' ? 1 : 0) +
+    (theoryResult2 === 'echoue' ? 1 : 0) +
+    (practicalResult === 'echoue' ? 1 : 0) +
+    (practicalResult2 === 'echoue' ? 1 : 0);
+
+  const savedFailures =
+    (examData.theory_result === 'echoue' ? 1 : 0) +
+    (examData.theory_result_2 === 'echoue' ? 1 : 0) +
+    (examData.practical_result === 'echoue' ? 1 : 0) +
+    (examData.practical_result_2 === 'echoue' ? 1 : 0);
+
+  const isTotalFailure = totalFailures >= 2;
+  const isTheoryPassed = theoryResult === 'admis' || theoryResult2 === 'admis';
+  const isPracticalPassed = practicalResult === 'admis' || practicalResult2 === 'admis';
+  const isWinner = isTheoryPassed && isPracticalPassed;
+
+  const isTheory1Failed = theoryResult === 'echoue';
+  const isTheory2Passed = theoryResult2 === 'admis';
+  const isTheory2Failed = theoryResult2 === 'echoue';
+  const isEliminatedTheory = isTheory1Failed && isTheory2Failed;
+  const usedLifeInTheory = isTheory1Failed && isTheory2Passed;
+
+  const isLocked = (field: string) => {
+    if (savedFailures >= 2) return true;
+    return !!examData[field as keyof HeavyExamData];
+  };
+
+  const name = `${student.first_name} ${student.last_name}`;
+  const agenceName = getAgencyName(student.agence_id);
+
+  return (
+    <div className={`bg-white border-2 rounded-[35px] overflow-hidden transition-all duration-500 text-right ${isWinner ? 'border-emerald-500 shadow-xl' : isTotalFailure ? 'border-red-500 opacity-90' : 'border-slate-100 shadow-sm'
+      }`} dir="rtl">
+      {/* HEADER */}
+      <div className={`px-6 py-5 flex justify-between items-center ${isWinner ? 'bg-emerald-50' : isTotalFailure ? 'bg-red-50' : 'bg-slate-50'}`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm ${isWinner ? 'bg-emerald-500 text-white' : isTotalFailure ? 'bg-red-500 text-white' : 'bg-white text-slate-400'
+            }`}>
+            <User size={18} />
+          </div>
+          <div className="flex flex-col text-right">
+            <span className="text-base font-black text-slate-800 tracking-tight uppercase leading-none mb-1.5 block">
+              {name}
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bg-slate-900 text-white text-[9px] px-2.5 py-0.5 rounded-md font-black uppercase italic">
+                Permis {student.license_type || 'C'}
+              </span>
+              <span className="text-[10px] font-bold italic text-slate-500">
+                موعد الامتحان: {theoryDate || 'غير محدد'}
+              </span>
+            </div>
+          </div>
+        </div>
+        {isWinner ? (
+          <div className="bg-emerald-500 text-white px-5 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+            <span className="text-[11px] font-black italic">نـاجـح نـهـائـيـاً</span>
+            <CheckCircle2 size={18} className="animate-pulse" />
+          </div>
+        ) : isTotalFailure ? (
+          <div className="bg-red-500 text-white px-5 py-2 rounded-2xl flex items-center gap-2 shadow-lg">
+            <span className="text-[11px] font-black italic">راسب نهائياً</span>
+            <AlertCircle size={18} />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="p-6 space-y-10">
+        {/* SECTION 01: THEORY */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-2">
+            <div className="flex items-center gap-2 bg-slate-100/80 w-fit px-4 py-1.5 rounded-full border border-slate-200/50">
+              <GraduationCap size={14} className="text-slate-600" />
+              <span className="text-[11px] text-slate-700 font-black uppercase tracking-wider">الامتحان النظري</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-slate-400 font-black">تاريخ النظري:</span>
+              <input
+                type="date"
+                value={theoryDate}
+                disabled={isLocked('theory_result')}
+                onChange={(e) => handleLocalUpdate('theory_date', e.target.value)}
+                className="bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-[#0F5A3E] transition-all text-center"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-6">
+            {/* Attempt 1 */}
+            <div className="space-y-3">
+              <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 01</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleLocalUpdate('theory_result', 'admis')}
+                  disabled={isLocked('theory_result')}
+                  className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${theoryResult === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'
+                    }`}
+                >
+                  ناجح
+                </button>
+                <button
+                  onClick={() => handleLocalUpdate('theory_result', 'echoue')}
+                  disabled={isLocked('theory_result')}
+                  className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${theoryResult === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'
+                    }`}
+                >
+                  راسب
+                </button>
+              </div>
+            </div>
+
+            {/* Attempt 2 */}
+            <div className={`space-y-3 ${theoryResult !== 'echoue' ? 'opacity-30' : ''}`}>
+              <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 02</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleLocalUpdate('theory_result_2', 'admis')}
+                  disabled={isLocked('theory_result_2') || theoryResult !== 'echoue'}
+                  className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${theoryResult2 === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'
+                    }`}
+                >
+                  ناجح
+                </button>
+                <button
+                  onClick={() => handleLocalUpdate('theory_result_2', 'echoue')}
+                  disabled={isLocked('theory_result_2') || theoryResult !== 'echoue'}
+                  className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${theoryResult2 === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'
+                    }`}
+                >
+                  راسب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 02: PRACTICAL */}
+        <AnimatePresence mode="wait">
+          {!isTheoryPassed || isEliminatedTheory ? (
+            <motion.div
+              key="lock1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="p-8 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[30px] flex flex-col items-center justify-center gap-3 text-center"
+            >
+              <LockIcon size={20} className="text-slate-300 mx-auto" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                {isEliminatedTheory ? "المرشح رسب نهائياً في النظري" : "في انتظار النجاح في النظري لفتح التطبيقي"}
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="section2"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="space-y-10"
+            >
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-2">
+                  <div className="flex items-center gap-2 bg-slate-100/80 w-fit px-4 py-1.5 rounded-full border border-slate-200/50">
+                    <Car size={14} className="text-slate-600" />
+                    <span className="text-[11px] text-slate-700 font-black uppercase tracking-wider">الامتحان التطبيقي</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-black">تاريخ التطبيقي:</span>
+                    <input
+                      type="date"
+                      value={practicalDate}
+                      disabled={isLocked('practical_result')}
+                      onChange={(e) => handleLocalUpdate('practical_date', e.target.value)}
+                      className="bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-[#0F5A3E] transition-all text-center"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Attempt 1 */}
+                  <div className="space-y-3">
+                    <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 01</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleLocalUpdate('practical_result', 'admis')}
+                        disabled={isLocked('practical_result')}
+                        className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${practicalResult === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'
+                          }`}
+                      >
+                        ناجح
+                      </button>
+                      <button
+                        onClick={() => handleLocalUpdate('practical_result', 'echoue')}
+                        disabled={isLocked('practical_result')}
+                        className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${practicalResult === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'
+                          }`}
+                      >
+                        راسب
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Attempt 2 */}
+                  <div className={`space-y-3 ${(practicalResult !== 'echoue' || usedLifeInTheory) ? 'opacity-30' : ''}`}>
+                    <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 02</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleLocalUpdate('practical_result_2', 'admis')}
+                        disabled={isLocked('practical_result_2') || practicalResult !== 'echoue' || usedLifeInTheory}
+                        className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${practicalResult2 === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'
+                          }`}
+                      >
+                        ناجح
+                      </button>
+                      <button
+                        onClick={() => handleLocalUpdate('practical_result_2', 'echoue')}
+                        disabled={isLocked('practical_result_2') || practicalResult !== 'echoue' || usedLifeInTheory}
+                        className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${practicalResult2 === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'
+                          }`}
+                      >
+                        راسب
+                      </button>
+                    </div>
+                    {usedLifeInTheory && practicalResult === 'echoue' && (
+                      <p className="text-[9px] text-red-500 font-bold mt-1 text-center font-black">⚠️ مقصي نهائياً</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {hasChanges && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`w-full h-16 rounded-[25px] font-black text-sm flex items-center justify-center gap-3 shadow-2xl transition-all ${saving ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#0F5A3E] text-white hover:bg-emerald-800'
+              }`}
+          >
+            {saving ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save size={18} />
+            )}
+            {saving ? 'جـاري الـحـفـظ...' : 'تـأكـيـد وحـفـظ الـنـتـائـج'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TheoryTerminal({ instructorName, agenceId, agenceName }: TheoryTerminalProps) {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
+  const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
+  const [activePanel, setActivePanel] = useState<'registration' | 'exams'>('registration');
+  const [examSearchTerm, setExamSearchTerm] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const isSubmitting = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -98,11 +483,20 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     notes: ''
   });
 
+  const fetchAgencies = async () => {
+    const { data } = await supabase.from('agencies').select('id, name');
+    if (data) setAgencies(data);
+  };
+
   const fetchStudents = async () => {
     try {
+      const isBoudinar = agenceName.toLowerCase() === 'boudinar' || agenceName === 'Boudinar';
+
       const [stRes, truckRes, examRes] = await Promise.all([
         supabase.from('students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
-        supabase.from('truck_students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
+        isBoudinar
+          ? supabase.from('truck_students').select('*').order('created_at', { ascending: false })
+          : supabase.from('truck_students').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
         supabase.from('exam_results').select('*').eq('agence_id', agenceId)
       ]);
 
@@ -123,6 +517,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
   useEffect(() => {
     setStudents([]);
     setExamResults([]);
+    fetchAgencies();
     fetchStudents();
 
     const channel = supabase.channel(`theory-sync-${agenceId}`)
@@ -310,6 +705,125 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     }
   };
 
+  const getAgencyName = (id: string | null | undefined) => {
+    if (!id) return 'Boudinar HQ';
+    const a = agencies.find(a => String(a.id) === String(id));
+    return a ? a.name : 'غير محدد';
+  };
+
+  const handleSaveStudentExam = async (studentId: string, updatedExamData: HeavyExamData) => {
+    try {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      const oldExamData = parseHeavyExamData(student);
+
+      const totalFailures =
+        (updatedExamData.theory_result === 'echoue' ? 1 : 0) +
+        (updatedExamData.theory_result_2 === 'echoue' ? 1 : 0) +
+        (updatedExamData.practical_result === 'echoue' ? 1 : 0) +
+        (updatedExamData.practical_result_2 === 'echoue' ? 1 : 0);
+
+      const isTotalFailure = totalFailures >= 2;
+      const isTheoryPassed = updatedExamData.theory_result === 'admis' || updatedExamData.theory_result_2 === 'admis';
+      const isPracticalPassed = updatedExamData.practical_result === 'admis' || updatedExamData.practical_result_2 === 'admis';
+      const isWinner = isTheoryPassed && isPracticalPassed;
+
+      // Sync top-level exam_date: theory_date for theory stage, practical_date if theory passed
+      const examDate = isTheoryPassed
+        ? (updatedExamData.practical_date || updatedExamData.theory_date || null)
+        : (updatedExamData.theory_date || null);
+
+      let examStatus = '';
+      if (isWinner) {
+        examStatus = 'ناجح';
+      } else if (isTotalFailure) {
+        examStatus = 'راسب نهائياً';
+      } else if (isTheoryPassed) {
+        examStatus = 'مؤجل'; // passed theory, waiting for practical
+      } else if (updatedExamData.theory_result === 'echoue') {
+        examStatus = 'راسب'; // failed first attempt theory
+      }
+
+      const serializedNotes = serializeHeavyExamData(student.notes, updatedExamData);
+
+      const { error } = await supabase
+        .from('truck_students')
+        .update({
+          exam_date: examDate,
+          exam_status: examStatus || null,
+          notes: serializedNotes
+        })
+        .eq('id', studentId);
+
+      if (error) throw error;
+
+      // Exact Dynamic Arabic Notification Routing
+      const student_name = `${student.first_name} ${student.last_name}`;
+      const licenseType = student.license_type || 'C';
+      let notificationMsg = '';
+
+      if (updatedExamData.practical_result_2 && !oldExamData.practical_result_2) {
+        if (updatedExamData.practical_result_2 === 'admis') {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) نجح في التطبيقي 2 - ناجح نهائياً 🎉`;
+        } else {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) سقط في التطبيقي 2 - راسب نهائياً ❌`;
+        }
+      }
+      else if (updatedExamData.practical_result && !oldExamData.practical_result) {
+        if (updatedExamData.practical_result === 'admis') {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) نجح في التطبيقي 1 - ناجح نهائياً 🎉`;
+        } else {
+          if (isTotalFailure) {
+            notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) رسب في التطبيقي 1 - راسب نهائياً ❌`;
+          } else {
+            notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) رسب في التطبيقي 1`;
+          }
+        }
+      }
+      else if (updatedExamData.theory_result_2 && !oldExamData.theory_result_2) {
+        if (updatedExamData.theory_result_2 === 'admis') {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) نجح في النظري 2`;
+        } else {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) سقط في النظري 2 - راسب نهائياً ❌`;
+        }
+      }
+      else if (updatedExamData.theory_result && !oldExamData.theory_result) {
+        if (updatedExamData.theory_result === 'admis') {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) نجح في النظري 1`;
+        } else {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) رسب في النظري 1`;
+        }
+      } else {
+        // General broadcast or date updates
+        if (isWinner) {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) ناجح نهائياً 🎉`;
+        } else if (isTotalFailure) {
+          notificationMsg = `المترشح ${student_name} (صنف ${licenseType}) راسب نهائياً ❌`;
+        } else {
+          notificationMsg = `📢 ${instructorName} حدث بيانات امتحان المترشح ${student_name}`;
+        }
+      }
+
+      await supabase.from('notifications').insert([{
+        agence_id: agenceId,
+        agency: agenceName,
+        staff_name: instructorName,
+        message: notificationMsg,
+        is_read: false,
+        type: 'STUDENT_UPDATE',
+        category: 'exams',
+        created_at: new Date().toISOString()
+      }]);
+
+      await fetchStudents();
+      alert("تم حفظ بيانات الامتحان بنجاح! ✅");
+    } catch (err: any) {
+      alert("خطأ أثناء حفظ الامتحان: " + err.message);
+      throw err;
+    }
+  };
+
   // 🚀 المسمار: ترتيب الطلبة حسب التاريخ للطباعة (مفلتر بـ الشهر اللي فـ الـ Header)
   const sortedStudentsForPrint = useMemo(() => {
     const selMonth = selectedDate.getMonth();
@@ -324,6 +838,21 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime());
   }, [students, selectedDate]);
 
+  const filteredHeavyStudents = useMemo(() => {
+    return students
+      .filter(s => s.license_type && s.license_type !== 'B')
+      .filter(s => s.exam_date && s.exam_date.trim() !== '')
+      .filter(s => {
+        if (!examSearchTerm) return true;
+        const term = examSearchTerm.toLowerCase();
+        return (
+          (s.first_name || '').toLowerCase().includes(term) ||
+          (s.last_name || '').toLowerCase().includes(term)
+        );
+      })
+      .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime());
+  }, [students, examSearchTerm]);
+
   return (
     <div className="min-h-screen w-full bg-[#F4F7F5] flex flex-col font-black italic uppercase tracking-tighter" dir="rtl">
 
@@ -331,61 +860,130 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
         students={students}
         selectedStudentId={selectedStudentId}
         setSelectedStudentId={setSelectedStudentId}
-        selectedDate={selectedDate} // 🚀 مسمار جديد
-        setSelectedDate={setSelectedDate} // 🚀 مسمار جديد
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
       />
       <main className="flex-1 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto mt-24 md:mt-12 mb-10 px-4">
-          <div className="text-center mb-8">
-            <span className="bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
-              وكالة: {agenceName} | المسئول: {instructorName}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-4">
-            <div className="flex justify-center w-full">
-              <PdfButton
-                students={students}
-                agenceName={agenceName}
-                selectedDate={selectedDate} // 🚀 مرر الساروت
-              />
-            </div>
-            <div className="flex justify-center w-full">
-              <MedicalTimbreButton
-                students={students}
-                agenceName={agenceName}
-                selectedDate={selectedDate} // 🚀 مرر الساروت
-              />
-            </div>
-            <div className="flex justify-center w-full">
-              <ExamScheduleButton
-                students={students}
-                agenceName={agenceName}
-                selectedDate={selectedDate} // 🚀 مرر الساروت
-              />
-            </div>
-            <div className="flex justify-center w-full">
-              <button
-                onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName, selectedDate)}
-                className="w-full bg-slate-900 text-white h-[45px] px-4 rounded-xl text-[10px] font-black shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2 border-2 border-slate-900"
-              >
-                <Printer size={14} /> استخراج النتائج (PDF)
-              </button>
-            </div>
+        {/* Toggle Menu */}
+        <div className="max-w-md mx-auto mt-24 md:mt-12 mb-8 px-4">
+          <div className="bg-white/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200/50 shadow-sm flex items-center justify-between">
+            <button
+              onClick={() => setActivePanel('registration')}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-[11px] transition-all font-black ${activePanel === 'registration'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'text-slate-400 hover:bg-slate-50'
+                }`}
+            >
+              <User size={14} />
+              تسجيل المترشحين
+            </button>
+            <button
+              onClick={() => setActivePanel('exams')}
+              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-[11px] transition-all font-black ${activePanel === 'exams'
+                ? 'bg-[#0F5A3E] text-white shadow-md'
+                : 'text-slate-400 hover:bg-slate-50'
+                }`}
+            >
+              <CheckCircle2 size={14} />
+              إدارة الامتحانات
+            </button>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto">
-          <TheorieForm
-            key={selectedStudentId || 'new'}
-            formData={formData}
-            setFormData={(val) => {
-              setIsEditing(true);
-              setFormData(val);
-            }}
-            handleSubmit={handleSubmit}
-            loading={loading}
-          />
-        </div>
-      </main >
-    </div >
+
+        {activePanel === 'registration' ? (
+          <>
+            <div className="max-w-6xl mx-auto mb-10 px-4">
+              <div className="text-center mb-8">
+                <span className="bg-emerald-100 text-emerald-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
+                  وكالة: {agenceName} | المسئول: {instructorName}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-4">
+                <div className="flex justify-center w-full">
+                  <PdfButton
+                    students={students}
+                    agenceName={agenceName}
+                    selectedDate={selectedDate}
+                  />
+                </div>
+                <div className="flex justify-center w-full">
+                  <MedicalTimbreButton
+                    students={students}
+                    agenceName={agenceName}
+                    selectedDate={selectedDate}
+                  />
+                </div>
+                <div className="flex justify-center w-full">
+                  <ExamScheduleButton
+                    students={students}
+                    agenceName={agenceName}
+                    selectedDate={selectedDate}
+                  />
+                </div>
+                <div className="flex justify-center w-full">
+                  <button
+                    onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName, selectedDate)}
+                    className="w-full bg-slate-900 text-white h-[45px] px-4 rounded-xl text-[10px] font-black shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2 border-2 border-slate-900"
+                  >
+                    <Printer size={14} /> استخراج النتائج (PDF)
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="max-w-6xl mx-auto">
+              <TheorieForm
+                key={selectedStudentId || 'new'}
+                formData={formData}
+                setFormData={(val) => {
+                  setIsEditing(true);
+                  setFormData(val);
+                }}
+                handleSubmit={handleSubmit}
+                loading={loading}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="bg-white/80 backdrop-blur-md border border-slate-200 rounded-[35px] p-6 shadow-xl space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                  🚛 إدارة امتحانات الوزن الثقيل (A, C, D, E)
+                </h2>
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="بحث عن مترشح..."
+                    value={examSearchTerm}
+                    onChange={(e) => setExamSearchTerm(e.target.value)}
+                    className="w-full bg-slate-100 border border-slate-200 rounded-full py-2.5 pr-10 pl-4 outline-none text-xs font-bold text-slate-900 focus:bg-white focus:border-[#0F5A3E] transition-all text-right"
+                    style={{ color: '#0f172a', fontWeight: 900, caretColor: '#0F5A3E' }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredHeavyStudents.length > 0 ? (
+                  filteredHeavyStudents.map((student) => (
+                    <StudentExamCard
+                      key={student.id}
+                      student={student}
+                      onSave={handleSaveStudentExam}
+                      getAgencyName={getAgencyName}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full py-20 flex flex-col items-center justify-center bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
+                    <CheckCircle2 size={40} className="text-slate-300 mb-4" />
+                    <p className="text-slate-400 italic">لا توجد امتحانات مبرمجة حالياً</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }

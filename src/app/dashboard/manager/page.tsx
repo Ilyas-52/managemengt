@@ -61,6 +61,7 @@ export default function ManagerTerminal() {
     const [showHamzaSub, setShowHamzaSub] = useState(false);
     const [activeNathariTab, setActiveNathariTab] = useState('auto');
     const [showNathariSub, setShowNathariSub] = useState(false);
+    const [showExamsSubMenu, setShowExamsSubMenu] = useState(false); // 🚀 مسمار الامتحانات الجديد
 
     const [students, setStudents] = useState<Student[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -350,7 +351,10 @@ export default function ManagerTerminal() {
                                     setShowHamzaSub(!showHamzaSub);
                                     setShowNathariSub(false);
                                     // ✅ مسمار: كنعطيو emploi كـ default باش ما تبقاش الباج بيضاء
-                                    if (activeSubTab === 'theorie' || !['emploi', 'suivi', 'vehicule', 'cash', 'exams', 'gprs'].includes(activeSubTab)) {
+                                    const allowedTabs = selectedAgency?.name === 'Boudinar'
+                                        ? ['emploi', 'suivi', 'vehicule', 'cash', 'exams-car', 'exams-truck', 'gprs']
+                                        : ['emploi', 'suivi', 'vehicule', 'cash', 'exams'];
+                                    if (activeSubTab === 'theorie' || !allowedTabs.includes(activeSubTab)) {
                                         setActiveSubTab('emploi');
                                     }
                                 }}
@@ -362,7 +366,6 @@ export default function ManagerTerminal() {
                             </button>
                             {showHamzaSub && (
                                 <div className="mr-4 pr-4 border-r-2 border-slate-100 flex flex-col gap-1 py-2">
-                                    {/* ✅ المسمار اللي ناقص ف الـ PC */}
                                     {[
                                         { id: 'emploi', label: '📅 البرنامج', icon: Calendar },
                                         { id: 'suivi', label: '✅ التتبع', icon: ClipboardCheck },
@@ -370,15 +373,74 @@ export default function ManagerTerminal() {
                                         { id: 'cash', label: '💰 الصندوق', icon: Coins },
                                         { id: 'exams', label: '🎓 الامتحانات', icon: GraduationCap },
                                         ...(selectedAgency?.name === 'Boudinar' ? [{ id: 'gprs', label: '🛰️ GPRS', icon: Gauge }] : [])
-                                    ].map(item => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setActiveSubTab(item.id)} // تأكد بلي كتصيفط item.id (الفرنسي)
-                                            className={`flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${activeSubTab === item.id ? 'bg-slate-900 text-white' : 'text-slate-400'}`}
-                                        >
-                                            <item.icon size={14} /> {item.label}
-                                        </button>
-                                    ))}
+                                    ].map(item => {
+                                        if (item.id === 'exams') {
+                                            if (selectedAgency?.name === 'Boudinar') {
+                                                const isExamsActive = activeSubTab === 'exams-car' || activeSubTab === 'exams-truck';
+                                                return (
+                                                    <div key={item.id} className="w-full space-y-1">
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowExamsSubMenu(!showExamsSubMenu);
+                                                                if (!isExamsActive) {
+                                                                    setActiveSubTab('exams-car'); // default to B
+                                                                }
+                                                            }}
+                                                            className={`w-full flex items-center justify-between p-3 rounded-xl text-[11px] font-black transition-all ${isExamsActive ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}
+                                                        >
+                                                            <span className="flex items-center gap-3">
+                                                                <GraduationCap size={14} /> {item.label}
+                                                            </span>
+                                                            <ChevronDown size={12} className={`transition-transform duration-300 ${showExamsSubMenu ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        {showExamsSubMenu && (
+                                                            <div className="mr-3 pr-3 border-r border-slate-200 flex flex-col gap-1.5 py-1">
+                                                                <button
+                                                                    onClick={() => setActiveSubTab('exams-car')}
+                                                                    className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-car'
+                                                                            ? 'bg-slate-100 text-slate-800'
+                                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                                                        }`}
+                                                                >
+                                                                    <span>🚗 امتحانات السيارات (Permis B)</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setActiveSubTab('exams-truck')}
+                                                                    className={`w-full text-right p-2 rounded-lg text-[10px] font-black transition-all flex items-center gap-1 ${activeSubTab === 'exams-truck'
+                                                                            ? 'bg-slate-100 text-slate-800'
+                                                                            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                                                                        }`}
+                                                                >
+                                                                    <span>🚛 امتحانات الوزن الثقيل</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } else {
+                                                const isExamsActive = activeSubTab === 'exams' || activeSubTab === 'exams-car';
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => setActiveSubTab('exams')}
+                                                        className={`w-full flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${isExamsActive ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                                                    >
+                                                        <GraduationCap size={14} /> {item.label}
+                                                    </button>
+                                                );
+                                            }
+                                        }
+
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setActiveSubTab(item.id)} // تأكد بلي كتصيفط item.id (الفرنسي)
+                                                className={`flex items-center gap-3 p-3 rounded-xl text-[11px] font-black ${activeSubTab === item.id ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                                            >
+                                                <item.icon size={14} /> {item.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -414,7 +476,7 @@ export default function ManagerTerminal() {
                         </button>
 
                         {/* ✅ مسمار 1: البحث يبان عند أي مدرس نظري أو في التابات المحددة */}
-                        {(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() || activeSubTab === 'suivi' || activeSubTab === 'exams') ? (
+                        {(activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() || activeSubTab === 'suivi' || activeSubTab === 'exams' || activeSubTab === 'exams-car' || activeSubTab === 'exams-truck') ? (
                             <div className="relative flex-1 max-w-md w-full sm:w-auto">
                                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <input
@@ -476,7 +538,8 @@ export default function ManagerTerminal() {
                                     {activeSubTab === 'suivi' && <ManagerSuivi students={filteredStudents} hamzaAttendance={hamzaAttendance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'vehicule' && <ManagerVehicle mileage_start={hamzaLogistics.mileage_start || 0} mileage_end={hamzaLogistics.mileage_end || 0} fuel_expense={hamzaLogistics.fuel_expense || 0} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
                                     {activeSubTab === 'cash' && <ManagerCash balance={hamzaLogistics.balance || 0} ledger={hamzaLedger} previousBalance={previousBalance} selectedAgency={selectedAgency} instructorName={practicalInstructor} />}
-                                    {activeSubTab === 'exams' && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} selectedDate={selectedDate} />}
+                                    {(activeSubTab === 'exams-car' || activeSubTab === 'exams') && <ManagerExams students={filteredStudents} examResults={examResults} highlightedName={null} highlightExpiry={0} selectedAgency={selectedAgency} instructorName={practicalInstructor} selectedDate={selectedDate} />}
+                                    {activeSubTab === 'exams-truck' && selectedAgency?.name === 'Boudinar' && <ManagerTrucks selectedAgency={selectedAgency} viewMode="exams" />}
                                     {activeSubTab === 'gprs' && selectedAgency?.name === 'Boudinar' && <ManagerGPRS weekDate={selectedDate} selectedAgency={selectedAgency} />}
                                 </div>
                             )}
@@ -549,18 +612,78 @@ export default function ManagerTerminal() {
                                         { id: 'vehicule', label: '🚗 السيارة' },
                                         { id: 'cash', label: '💰 الصندوق' },
                                         { id: 'exams', label: '🎓 الامتحانات' }
-                                    ].map(item => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => {
-                                                setActiveSubTab(item.id); // كيعطي 'emploi' للسيستيم
-                                                setIsSidebarOpen(false);   // كيسد المينيو ف التابلت
-                                            }}
-                                            className="text-right py-2 text-[11px] font-black capitalize"
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
+                                    ].map(item => {
+                                        if (item.id === 'exams') {
+                                            if (selectedAgency?.name === 'Boudinar') {
+                                                const isExamsActive = activeSubTab === 'exams-car' || activeSubTab === 'exams-truck';
+                                                return (
+                                                    <div key={item.id} className="w-full space-y-1">
+                                                        <button
+                                                            onClick={() => {
+                                                                setShowExamsSubMenu(!showExamsSubMenu);
+                                                                if (!isExamsActive) {
+                                                                    setActiveSubTab('exams-car'); // default to B
+                                                                }
+                                                            }}
+                                                            className={`w-full flex items-center justify-between py-2 text-[11px] font-black ${isExamsActive ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}
+                                                        >
+                                                            <span className="flex items-center gap-2">🎓 {item.label}</span>
+                                                            <ChevronDown size={12} className={`transition-transform duration-300 ${showExamsSubMenu ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        {showExamsSubMenu && (
+                                                            <div className="mr-3 pr-3 border-r border-slate-200 flex flex-col gap-2 py-1">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveSubTab('exams-car');
+                                                                        setIsSidebarOpen(false);
+                                                                    }}
+                                                                    className={`text-right py-1.5 text-[10px] font-black ${activeSubTab === 'exams-car' ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}
+                                                                >
+                                                                    🚗 امتحانات السيارات (Permis B)
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveSubTab('exams-truck');
+                                                                        setIsSidebarOpen(false);
+                                                                    }}
+                                                                    className={`text-right py-1.5 text-[10px] font-black ${activeSubTab === 'exams-truck' ? 'text-slate-900 font-extrabold' : 'text-slate-400'}`}
+                                                                >
+                                                                    🚛 امتحانات الوزن الثقيل
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } else {
+                                                const isExamsActive = activeSubTab === 'exams' || activeSubTab === 'exams-car';
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => {
+                                                            setActiveSubTab('exams');
+                                                            setIsSidebarOpen(false);
+                                                        }}
+                                                        className={`text-right py-2 text-[11px] font-black ${isExamsActive ? 'text-slate-900 font-black' : 'text-slate-500'}`}
+                                                    >
+                                                        🎓 {item.label}
+                                                    </button>
+                                                );
+                                            }
+                                        }
+
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => {
+                                                    setActiveSubTab(item.id); // كيعطي 'emploi' للسيستيم
+                                                    setIsSidebarOpen(false);   // كيسد المينيو ف التابلت
+                                                }}
+                                                className={`text-right py-2 text-[11px] font-black capitalize ${activeSubTab === item.id ? 'text-slate-900 font-black' : 'text-slate-500'}`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        );
+                                    })}
                                     {selectedAgency?.name === 'Boudinar' && <button onClick={() => { setActiveSubTab('gprs'); setIsSidebarOpen(false); }} className="text-right py-2 text-[11px] font-black">🛰️ GPRS</button>}
                                 </div>
                             )}
@@ -574,7 +697,7 @@ export default function ManagerTerminal() {
                                         setIsSidebarOpen(false); // ✅ المسمار: هاد السطر هو اللي كيسد المينيو باش تبان الباج
                                     }}
                                     className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
-            ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
+                                        ${activeStaff === 'holidays' ? 'bg-orange-500 text-white border-orange-500 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-orange-50'}`}
                                 >
                                     <span className="flex items-center gap-2">🗓️ تتبع الـعطل</span>
                                     <Calendar size={16} />
