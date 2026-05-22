@@ -122,7 +122,7 @@ export default function ManagerTerminal() {
     }, []);
 
     const fetchData = async () => {
-        if (!selectedAgency) return;
+        if (!selectedAgency?.id) return; // الحصار الذكي المصلح لعدم الكراش
         try {
             setLoading(true);
             const mondayStr = getMonday(selectedDate);
@@ -137,12 +137,9 @@ export default function ManagerTerminal() {
             if (stErr) throw stErr;
             if (st) setStudents(st);
 
-            // 🚀 مسمار التغيير: حيدنا شرط (activeStaff === practicalInstructor) 
-            // باش الداتا تحمل بمجرد اختيار الوكالة
-
             // 2️⃣ جلب الجدول الزمني (النسخة القارة Master Template)
-            // ✅ مسمار الذكاء: كنجيبو السكاجول غير إيلا تبدلات الوكالة نيشـان
-            if (lastFetchedAgencyId.current !== selectedAgency.id) {
+            // ✅ مسمار الذكاء: كنجيبو السكاجول إيلا تبدلات الوكالة أوباقي ماعمرش ف الـ State كاع
+            if (lastFetchedAgencyId.current !== selectedAgency.id || !hamzaSchedule) {
                 const { data: sched } = await supabase
                     .from('weekly_schedules')
                     .select('*')
@@ -166,13 +163,13 @@ export default function ManagerTerminal() {
                 lastFetchedAgencyId.current = selectedAgency.id;
             }
 
-            // 3️⃣ جلب نتائج الامتحانات - (حيدنا staff_name)
+            // 3️⃣ جلب نتائج الامتحانات
             const { data: res } = await supabase
                 .from('exam_results')
                 .select('*')
                 .eq('agence_id', selectedAgency.id);
 
-            // 4️⃣ جلب الحضور - (حيدنا instructor_name)
+            // 4️⃣ جلب الحضور
             const { data: att } = await supabase
                 .from('lesson_attendance')
                 .select('*')
@@ -186,7 +183,7 @@ export default function ManagerTerminal() {
                 .eq('week_start_date', mondayStr)
                 .maybeSingle();
 
-            // 6️⃣ جلب الكاش (Petty Cash) - (حيدنا staff_name)
+            // 6️⃣ جلب الكاش (Petty Cash)
             const { data: pCash } = await supabase
                 .from('petty_cash_ledger')
                 .select('*')
@@ -198,7 +195,6 @@ export default function ManagerTerminal() {
                 const currentWeekEntries = pCash.filter(e => e.week_start_date === mondayStr);
                 setHamzaLedger(currentWeekEntries);
 
-                // 🚀 المسمار: حساب الرصيد السابق
                 const prevBal = pCash
                     .filter(e => e.week_start_date && e.week_start_date < mondayStr)
                     .reduce((acc, entry) => entry.type === 'recette' ? acc + entry.amount : acc - entry.amount, 0);
@@ -237,45 +233,45 @@ export default function ManagerTerminal() {
         }
     };
     // 1️⃣ المسمار الأول: جلب الوكالات (هادي ناضية)
+    // 1️⃣ جلب الوكالات من الداتابيز عند أول دخول وتثبيت بودينار كـ اختيار بدئي ذكي
     useEffect(() => {
         const fetchAgencies = async () => {
             const { data } = await supabase.from('agencies').select('*');
             if (data && data.length > 0) {
                 setAgencies(data);
 
-                // ✅ Restore persisted agency on refresh
                 const persisted = readPersistedState();
+                // إذا كان هناك وكالة مخزنة سابقاً في الـ localStorage ولها وجود حقيقي
                 if (persisted.selectedAgency?.id) {
                     const match = data.find((a: any) => a.id === persisted.selectedAgency.id);
                     if (match) {
                         setSelectedAgency(match);
                         setExpandedAgencyId(persisted.expandedAgencyId ?? null);
-                    } else {
-                        // إيلا مالقاش الـ id القديم، يعزل بودينار كـ اختيار أول فـ الخلفية
-                        const boudinarMatch = data.find((a: any) => a.name.includes('Boudinar') || a.name.includes('بودينار'));
-                        setSelectedAgency(boudinarMatch || data[0]);
+                        setIsIntroLoading(false); // نطلق التحميل فوراً
+                        return;
                     }
-                } else {
-                    // إيلا تفتح السيت أول مرة، يعزل بودينار أوتوماتيك فـ الداتا
-                    const boudinarMatch = data.find((a: any) => a.name.includes('Boudinar') || a.name.includes('بودينار'));
-                    setSelectedAgency(boudinarMatch || data[0]);
                 }
+
+                // fallback ذكي: يفتش على بودينار بالاسم ويعينها كـ Default بلا تبلبوك
+                const boudinarMatch = data.find((a: any) => a.name.includes('Boudinar') || a.name.includes('بودينار'));
+                setSelectedAgency(boudinarMatch || data[0]);
             }
             setIsIntroLoading(false);
         };
         fetchAgencies();
     }, []);
 
-    // 2️⃣ المسمار الثاني: جلب الداتا (التحكم الذكي)
+    // 2️⃣ جلب الداتا (التحكم السريع): تفعيل الـ Fetch بمجرد شحن الـ selectedAgency بلا سباق وقت
     useEffect(() => {
-        if (!isIntroLoading && selectedAgency) {
+        if (!isIntroLoading && selectedAgency?.id) {
             fetchData();
         }
-    }, [selectedDate, isIntroLoading, selectedAgency]);
+    }, [selectedDate, isIntroLoading, selectedAgency?.id]); // الاعتماد على الـ id لمنع الـ Loops
 
-    // 3️⃣ Persist dashboard navigation state to localStorage + history
+    // 3️⃣ حفظ الحالة في الـ localStorage والـ History بذكاء وبلا تكرار وثقل
     useEffect(() => {
-        if (isIntroLoading) return;
+        if (isIntroLoading || !selectedAgency) return;
+
         const state = {
             activeStaff,
             activeSubTab,
@@ -285,12 +281,16 @@ export default function ManagerTerminal() {
         };
         writePersistedState(state);
 
-        // Push a history entry so the browser Back button can restore previous view
-        const historyState = { activeStaff, activeSubTab, activeNathariTab, agencyId: selectedAgency?.id, expandedAgencyId };
-        window.history.pushState(historyState, '');
-    }, [activeStaff, activeSubTab, activeNathariTab, selectedAgency, expandedAgencyId, isIntroLoading]);
+        // مسمار الأمان: كنسجلو فـ الـ History غير إيلا تبدلات الصفحة الحقيقية ماشي غي فتح المينيو
+        const historyState = { activeStaff, activeSubTab, activeNathariTab, agencyId: selectedAgency.id, expandedAgencyId };
 
-    // 4️⃣ Listen for browser Back/Forward button
+        // منع الـ Push العشوائي إذا كانت الحالة متطابقة تماماً لتخفيف التلفون 100%
+        if (window.history.state?.agencyId !== selectedAgency.id || window.history.state?.activeSubTab !== activeSubTab) {
+            window.history.pushState(historyState, '');
+        }
+    }, [activeStaff, activeSubTab, activeNathariTab, selectedAgency?.id, expandedAgencyId, isIntroLoading]);
+
+    // 4️⃣ الاستماع لـ سهم الرجوع (الخلف) وتحديث الواجهة بسلاسة
     useEffect(() => {
         const handlePopState = (e: PopStateEvent) => {
             const s = e.state;
@@ -328,6 +328,8 @@ export default function ManagerTerminal() {
             return fullName.includes(term);
         });
     }, [students, searchTerm]);
+
+
     if (!isMounted) {
         return (
             <div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-900 font-black">
