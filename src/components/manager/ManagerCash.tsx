@@ -12,14 +12,15 @@ interface Props {
 }
 
 export default function ManagerCash({ balance, ledger, previousBalance, selectedAgency, instructorName }: Props) {
-    const translateCategory = (cat: string) => {
+    const translateCategory = (cat: any) => {
         const mapping: { [key: string]: string } = {
             'transport_exam': 'نقل الامتحان',
             'heures_supp': 'ساعات إضافية',
-            'younnes_zeriah': 'يونس زرياح', // 🚀 المسمار الجديد: يونس زرياح بالعربية
+            'younnes_zeriah': 'يونس زرياح',
             'fuel': 'بنزين',
             'wash': 'غسيل السيارة',
-            'repair': 'إصلاح / صيانة'
+            'repair': 'إصلاح / صيانة',
+            'moniteur': '👤 المونيتور' // الزيادة الجديدة هنا لتقارير المدير
         };
         return mapping[cat] || cat;
     };
@@ -178,7 +179,7 @@ export default function ManagerCash({ balance, ledger, previousBalance, selected
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 italic font-black">
-                            {/* 🚀 المسمار: سطر "الرصيد السابق" فـ المانجر */}
+                            {/* 🚀 سطر الرصيد السابق كيبقى محمي كيفما هو */}
                             {previousBalance !== 0 && (
                                 <tr className="border-b border-slate-50 bg-slate-50/30 italic">
                                     <td className="py-5 pr-4">
@@ -202,10 +203,13 @@ export default function ManagerCash({ balance, ledger, previousBalance, selected
                                 <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
                                     <td className="py-5 pr-4">
                                         <p className="text-[12px] font-black text-slate-800 leading-none group-hover:text-[#04b55f] transition-colors uppercase">
-                                            {/* 🚀 المسمار: كنشوفو واش المترشح خارجي نيشـان فـ جدول المانجر */}
+                                            {/* 🚀 مسمار الفرز الذكي المصلح للـ Manager: */}
                                             {entry.student_name === 'EXTERNAL_CANDIDATE'
                                                 ? `👤 ${(entry as any).external_name || 'مترشح خارجي'}`
-                                                : (entry.student_name || 'مصاريف عامة')}
+                                                : entry.category === 'moniteur'
+                                                    ? `👤 أجرة المدرب (المونيتور)` // غي يـقشع المونيتور يـكتبها ليه نـيشان فـ الخانة الأولى
+                                                    : (entry.student_name || 'مصاريف عامة')
+                                            }
                                         </p>
 
                                         <div className="flex flex-col gap-1 mt-2 opacity-40">

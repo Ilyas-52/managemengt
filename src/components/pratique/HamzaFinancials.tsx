@@ -29,14 +29,15 @@ export default function HamzaFinancials({
 
     const safeLedger = ledger || [];
 
-    const translateCategory = (cat: string) => {
+    const translateCategory = (cat: any) => { // 🟢 زِدنا any هنا باش يـموت الخط الأحمر
         const mapping: { [key: string]: string } = {
             'transport_exam': 'نقل الامتحان',
             'heures_supp': 'ساعات إضافية',
-            'younnes_zeriah': 'يونس زرياح', // 🚀 المسمار الجديد: يونس زرياح بالعربية
+            'younnes_zeriah': 'يونس زرياح',
             'fuel': 'بنزين',
             'wash': 'غسيل السيارة',
-            'repair': 'إصلاح / صيانة'
+            'repair': 'إصلاح / صيانة',
+            'moniteur': '👤 المونيتور'
         };
         return mapping[cat] || cat;
     };
@@ -53,7 +54,8 @@ export default function HamzaFinancials({
         depense: [
             { value: 'fuel', label: '⛽ بنزين', icon: '⛽' },
             { value: 'wash', label: '🧼 غسيل السيارة', icon: '🧼' },
-            { value: 'repair', label: '🔧 إصلاح / صيانة', icon: '🔧' }
+            { value: 'repair', label: '🔧 إصلاح / صيانة', icon: '🔧' },
+            { value: 'moniteur', label: '👤 الـمـونـيـتـور', icon: '👤' }
         ]
     };
 
@@ -89,7 +91,6 @@ export default function HamzaFinancials({
                             <button
                                 key={t}
                                 onClick={() => {
-                                    // 🔄 ملي كيبدل النوع، كنعطيوه أول اختيار فـ القائمة الجديدة أوتوماتيكياً
                                     const firstCat = t === 'recette' ? 'transport_exam' : 'fuel';
                                     setNewEntry({ ...newEntry, type: t, category: firstCat });
                                 }}
@@ -115,7 +116,6 @@ export default function HamzaFinancials({
                                 className={`w-full h-14 bg-slate-50 border-2 rounded-2xl px-5 font-black text-slate-800 text-sm outline-none transition-all ${newEntry.type === 'recette' ? 'focus:border-[#1dbf73]' : 'focus:border-[#ef4444]'
                                     }`}
                             >
-                                {/* 💡 هنا كيتم عرض الاختيارات على حساب واش recette ولا depense */}
                                 {(newEntry.type === 'recette' ? categories.recette : categories.depense).map((cat) => (
                                     <option key={cat.value} value={cat.value}>
                                         {cat.label}
@@ -125,7 +125,7 @@ export default function HamzaFinancials({
                         </div>
 
                         <AnimatePresence mode="wait">
-                            {/* 🚀 المسمار: اختيار المترشح يبان غير فـ نقل الامتحان والساعات الإضافية */}
+                            {/* 🚀 مسمار الأمان: اختيار المترشح كيبان غي فـ المداخيل د نقل الامتحان والساعات الإضافية، ومكيطلعش فـ مصروف المونيتور */}
                             {newEntry.type === 'recette' && (newEntry.category === 'transport_exam' || newEntry.category === 'heures_supp') && (
                                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
                                     <div className="space-y-1">
@@ -136,11 +136,7 @@ export default function HamzaFinancials({
                                             className="w-full h-14 bg-white border-2 border-[#1dbf73]/30 rounded-2xl px-5 font-black text-slate-800 text-sm outline-none focus:border-[#1dbf73] shadow-sm"
                                         >
                                             <option value="">— اختر اسم المرشح —</option>
-
-
-                                            {/* 🚀 خيار المترشح الخارجي */}
                                             <option value="EXTERNAL_CANDIDATE" className="text-orange-600 font-black">👤 مترشح خارجي (ساعات إضافية)</option>
-
                                             <optgroup label="مترشحي المؤسسة">
                                                 {students.map(s => (
                                                     <option key={s.id} value={`${s.first_name} ${s.last_name}`}>
@@ -151,7 +147,6 @@ export default function HamzaFinancials({
                                         </select>
                                     </div>
 
-                                    {/* ✍️ إيلا عزل "خارجي"، كايطلع هاد الـ input */}
                                     {newEntry.student_name === 'EXTERNAL_CANDIDATE' && (
                                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-1">
                                             <label className="text-[10px] text-orange-500 font-black px-2 uppercase italic">اسم المترشح الخارجي</label>
@@ -196,11 +191,10 @@ export default function HamzaFinancials({
                     </div>
                 </div>
 
-                {/* ── الجهة 2: سجل الحركات ── */}
+                {/* ── الجهة 2: سجل الحركات (الجدول المطور والمنسجم تلقائياً) ── */}
                 <div className="bg-white border-2 border-slate-100 rounded-[40px] p-8 space-y-6 shadow-sm min-h-[600px]">
                     <p className="text-[11px] text-slate-400 font-black uppercase tracking-[0.3em] px-2">تقرير المداخيل و المصاريف</p>
                     <div className="space-y-3 max-h-[650px] overflow-y-auto no-scrollbar pr-1">
-                        {/* 🚀 المسمار: سطر "الرصيد السابق" (Virtual Row) */}
                         {previousBalance !== 0 && (
                             <div className="bg-white border-2 border-slate-100 rounded-[25px] p-5 flex items-center justify-between shadow-sm italic">
                                 <div className="flex items-center gap-4">
@@ -208,9 +202,7 @@ export default function HamzaFinancials({
                                         <Wallet size={22} strokeWidth={2} />
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[13px] font-semibold text-slate-700">
-                                            📦 رصيد من الأسابيع السابقة
-                                        </p>
+                                        <p className="text-[13px] font-semibold text-slate-700">📦 رصيد من الأسابيع السابقة</p>
                                         <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Balance Report</p>
                                     </div>
                                 </div>
@@ -231,11 +223,11 @@ export default function HamzaFinancials({
                                         <div className="text-right">
                                             <p className="text-[15px] font-black text-slate-900 leading-tight">
                                                 {isRecette ? (
-                                                    /* 🚀 المسمار: كنشوفو واش المترشح خارجي ولا داخلي */
                                                     entry.student_name === 'EXTERNAL_CANDIDATE'
                                                         ? `👤 ${entry.external_name || 'مترشح خارجي'}`
                                                         : (entry.student_name || 'مدخول عام')
                                                 ) : (
+                                                    // 🟢 هنا التعديل الحاسم: سطر المونيتور وباقي المصاريف كيطلع مترجم تلقائياً بالفصحى وبدون مشاكل
                                                     translateCategory(entry.category)
                                                 )}
                                             </p>

@@ -444,7 +444,15 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     finalDetailMsg = `(مدخول عام)`;
                 }
             } else {
-                const catLabels: Record<string, string> = { transport_exam: 'نقل الامتحان', heures_supp: 'ساعات إضافية', fuel: 'بنزين', wash: 'غسيل السيارة', repair: 'إصلاح / صيانة' };
+                // 🟢 مسمار التعديل التقني: إضافة المونيتور بالفصحى للـ Notifications د السنطرال
+                const catLabels: Record<string, string> = {
+                    transport_exam: 'نقل الامتحان',
+                    heures_supp: 'ساعات إضافية',
+                    fuel: 'بنزين',
+                    wash: 'غسيل السيارة',
+                    repair: 'إصلاح / صيانة',
+                    moniteur: 'المونيتور' // الزيادة الجديدة هنا لفرز الإشعارات فوراً
+                };
                 finalDetailMsg = `(الفئة: ${catLabels[newEntry.category] || newEntry.category})`;
             }
 
