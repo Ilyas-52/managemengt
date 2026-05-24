@@ -6,7 +6,7 @@ import NotificationDropdown, { Notification } from '@/components/NotificationDro
 import { useNotifications } from '@/hooks/useNotifications';
 import ManagerGPRS from '@/components/manager/ManagerGPRS';
 import ManagerTrucks from '@/components/manager/ManagerTrucks';
-import { Search, ShieldCheck, Truck, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText } from 'lucide-react';
+import { Search, ShieldCheck, Truck, Scale, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText } from 'lucide-react';
 
 // استيراد الشقوف
 import ManagerFinance from '@/components/manager/ManagerFinance';
@@ -17,6 +17,7 @@ import ManagerCash from '@/components/manager/ManagerCash';
 import ManagerExams from '@/components/manager/ManagerExams';
 import HolidaysTracker from '@/components/manager/HolidaysTracker';
 import ManagerFleet from '@/components/manager/ManagerFleet';
+import ManagerPenalties from '@/components/manager/ManagerPenalties';
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
 import { Agency, Student, ScheduleData, ExamResult, AttendanceRecord, CashRecord, VehicleLog } from '@/types/dashboard';
@@ -524,6 +525,23 @@ export default function ManagerTerminal() {
                         <span className="flex items-center gap-2">  تسيير مصاريف الصيانة للسيارات </span>
                         <Car size={16} />
                     </button>
+                    {/* 🛑 بوطون نظام العقوبات الجديد تحت الصيانة ديريكت */}
+                    {/* 🛑 نظام عقوبات الخدامة - مسمار الحزم والتحكم الصارم */}
+                    <button
+                        onClick={() => {
+                            setActiveStaff('penalties'); // 🟢 التوجيه للقسم الجديد ديال العقوبات بنجاح!
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+        ${activeStaff === 'penalties'
+                                ? 'bg-[#ef4444] text-white border-[#ef4444] shadow-lg shadow-red-500/20'
+                                : 'bg-slate-50 text-slate-500 border-transparent hover:bg-red-50'}`}
+                    >
+                        <span className="flex items-center gap-2">   نضام عقوبات العاملين  </span>
+                        <Scale size={16} />
+                    </button>
                 </div>
                 <div className="mt-auto pt-10 text-[9px] text-slate-300 font-bold text-center italic uppercase">v2.0 • Powered by Mahamran</div>
             </aside>
@@ -589,7 +607,11 @@ export default function ManagerTerminal() {
                         <div className="max-w-[1600px] mx-auto">
                             <ManagerFleet />
                         </div>
-                    ) : (
+                    ) : activeStaff === 'penalties' ? ( // 🟢 المسمار الجديد: عزل وقراءة صفحة العقوبات فوريّاً
+                        <div className="max-w-[1600px] mx-auto">
+                            <ManagerPenalties />
+                        </div>
+                    ) : ( // ⬅️ هنا كـيـتـكـمّـل الـ شرط للـ الأقسام لي باقة عندك تـحـت فـ الـ كود
                         <div className="max-w-[1600px] mx-auto space-y-8">
                             {/* ✅ مسمار 2: النظري يخدم مع أي مدرس نظري (براهيم، يوسف، محمد، زكرياء...) */}
                             {activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() ? (
@@ -814,6 +836,23 @@ export default function ManagerTerminal() {
                             >
                                 <span className="flex items-center gap-2">  تسيير مصاريف الصيانة للسيارات </span>
                                 <Car size={16} />
+                            </button>
+                            {/* 🛑 نظام عقوبات الخدامة (تلفون) - مسمار الحزم الصارم مع قفل المنيو التلقائي */}
+                            <button
+                                onClick={() => {
+                                    setActiveStaff('penalties'); // التوجيه لقسم العقوبات
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false); // 🟢 المسمار الحاسم: كيسد المنيو فـ التلفون فـ البلاصة باش ما يغطيش الصفحة
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+        ${activeStaff === 'penalties'
+                                        ? 'bg-[#ef4444] text-white border-[#ef4444] shadow-lg shadow-red-500/20'
+                                        : 'bg-slate-50 text-slate-500 border-transparent hover:bg-red-50'}`}
+                            >
+                                <span className="flex items-center gap-2">  نضام عقوبات العاملين </span>
+                                <Scale size={16} />
                             </button>
                         </div>
                     </aside>
