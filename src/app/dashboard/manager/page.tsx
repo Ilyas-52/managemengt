@@ -16,6 +16,7 @@ import ManagerVehicle from '@/components/manager/ManagerVehicle';
 import ManagerCash from '@/components/manager/ManagerCash';
 import ManagerExams from '@/components/manager/ManagerExams';
 import HolidaysTracker from '@/components/manager/HolidaysTracker';
+import ManagerFleet from '@/components/manager/ManagerFleet';
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
 import { Agency, Student, ScheduleData, ExamResult, AttendanceRecord, CashRecord, VehicleLog } from '@/types/dashboard';
@@ -509,6 +510,20 @@ export default function ManagerTerminal() {
                         <span className="flex items-center gap-2">📅 تتبع العطل</span>
                         <Calendar size={16} />
                     </button>
+                    {/* 🚗 تسيير سيارات ومصاريف المدرسة */}
+                    <button
+                        onClick={() => {
+                            setActiveStaff('fleet'); // مسمار التوجيه للقسم الجديد
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+        ${activeStaff === 'fleet' ? 'bg-[#0F5A3E] text-white border-[#0F5A3E] shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-emerald-50'}`}
+                    >
+                        <span className="flex items-center gap-2">  تسيير مصاريف الصيانة للسيارات </span>
+                        <Car size={16} />
+                    </button>
                 </div>
                 <div className="mt-auto pt-10 text-[9px] text-slate-300 font-bold text-center italic uppercase">v2.0 • Powered by Mahamran</div>
             </aside>
@@ -569,6 +584,10 @@ export default function ManagerTerminal() {
                     ) : activeStaff === 'holidays' ? (
                         <div className="max-w-[1600px] mx-auto">
                             <HolidaysTracker />
+                        </div>
+                    ) : activeStaff === 'fleet' ? (
+                        <div className="max-w-[1600px] mx-auto">
+                            <ManagerFleet />
                         </div>
                     ) : (
                         <div className="max-w-[1600px] mx-auto space-y-8">
@@ -780,6 +799,21 @@ export default function ManagerTerminal() {
                             >
                                 <span className="flex items-center gap-2">📅 تتبع العطل</span>
                                 <Calendar size={16} />
+                            </button>
+                            {/* 🚗 تسيير سيارات ومصاريف المدرسة (تلفون) */}
+                            <button
+                                onClick={() => {
+                                    setActiveStaff('fleet');
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false); // كيسد المينيو فـ التلفون فـ البلاصة
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all
+        ${activeStaff === 'fleet' ? 'bg-[#0F5A3E] text-white border-[#0F5A3E] shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-emerald-50'}`}
+                            >
+                                <span className="flex items-center gap-2">  تسيير مصاريف الصيانة للسيارات </span>
+                                <Car size={16} />
                             </button>
                         </div>
                     </aside>
