@@ -115,9 +115,9 @@ export default function ManagerPenalties() {
                 
                 
                 <div class="info-box">
-                    <strong>الاسم الكامل للموظف:</strong> <span style="font-size: 18px; color: #ef4444;">${selectedStaff}</span>
+                    <strong>الاسم الكامل :</strong> <span style="font-size: 18px; color: #ef4444;">${selectedStaff}</span>
                     <br/>
-                    <strong>إجمالي المخالفات المسجلة:</strong> <span>${filtered.length} مخالفات جارية</span>
+                    <strong>إجمالي المخالفات المسجلة:</strong> <span>${filtered.length} </span>
                 </div>
 
                 <table>
