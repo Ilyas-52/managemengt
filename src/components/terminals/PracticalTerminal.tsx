@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, FileText, UserCircle } from 'lucide-react';
+import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, FileText, UserCircle, LogOut } from 'lucide-react';
 
 // Shared Components
 import PracticalPlanning from '@/components/pratique/HamzaPlanning';
@@ -70,6 +70,16 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const getMondayString = (d: string): string => {
         const date = getMonday(d);
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            window.localStorage.clear();
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
     };
 
     useEffect(() => {
@@ -586,15 +596,24 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                             </span>
                         </div>
                     </div>
-                    <div className="w-full sm:w-auto flex items-center gap-3 px-4 py-2.5 border-2 border-slate-900 rounded-2xl transition-all bg-white">
-                        <Calendar size={18} className="text-emerald-500 shrink-0" />
-                        <input
-                            type="date"
-                            value={weekDate}
-                            onChange={(e) => setWeekDate(e.target.value)}
-                            className="bg-transparent text-slate-900 font-black outline-none text-sm sm:text-lg cursor-pointer flex-1 text-right"
-                            style={{ direction: 'ltr', textAlign: 'right' }}
-                        />
+                    <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-3">
+                        <button 
+                            onClick={handleLogout}
+                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 px-4 py-2.5 rounded-2xl sm:rounded-full text-xs font-black transition-colors border border-rose-100"
+                        >
+                            <LogOut size={16} />
+                            <span>تسجيل الخروج</span>
+                        </button>
+                        <div className="w-full sm:w-auto flex items-center gap-3 px-4 py-2.5 border-2 border-slate-900 rounded-2xl transition-all bg-white">
+                            <Calendar size={18} className="text-emerald-500 shrink-0" />
+                            <input
+                                type="date"
+                                value={weekDate}
+                                onChange={(e) => setWeekDate(e.target.value)}
+                                className="bg-transparent text-slate-900 font-black outline-none text-sm sm:text-lg cursor-pointer flex-1 text-right"
+                                style={{ direction: 'ltr', textAlign: 'right' }}
+                            />
+                        </div>
                     </div>
                 </div>
 

@@ -6,7 +6,7 @@ import NotificationDropdown, { Notification } from '@/components/NotificationDro
 import { useNotifications } from '@/hooks/useNotifications';
 import ManagerGPRS from '@/components/manager/ManagerGPRS';
 import ManagerTrucks from '@/components/manager/ManagerTrucks';
-import { Search, ShieldCheck, Truck, Scale, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText } from 'lucide-react';
+import { Search, ShieldCheck, Truck, Scale, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText, LogOut } from 'lucide-react';
 
 // استيراد الشقوف
 import ManagerFinance from '@/components/manager/ManagerFinance';
@@ -109,7 +109,6 @@ export default function ManagerTerminal() {
         return 'Hamza'; // Default لـ Boudinar وأي وكالة أخرى
     }, [selectedAgency]);
 
-    // ✅ مسمار 02: منطق المدرسين ديال النظري (Théorie)
     const theoreticalInstructor = useMemo(() => {
         const agencyName = (selectedAgency?.name || '').toUpperCase();
         if (agencyName === 'KRONA') return 'Mohammed';
@@ -117,6 +116,16 @@ export default function ManagerTerminal() {
         if (agencyName === 'TAZAGHINE') return 'Zakaria/Wafae'; // ركز فـ هاد السمية خاصها تكون مطابقة للي فـ الداتابيز
         return 'Youssef'; // Default لـ Boudinar
     }, [selectedAgency]);
+
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            window.localStorage.clear();
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
+    };
 
     const { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification } = useNotifications(selectedAgency?.name || 'Boudinar');
     useEffect(() => {
@@ -574,6 +583,13 @@ export default function ManagerTerminal() {
                     </div>
 
                     <div className="flex flex-row items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <button 
+                            onClick={handleLogout}
+                            className="hidden sm:flex items-center gap-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full text-xs font-black transition-colors border border-rose-100"
+                        >
+                            <LogOut size={14} />
+                            <span>تسجيل الخروج</span>
+                        </button>
                         <div className="flex items-center gap-3 px-4 py-2 border-2 border-slate-900 rounded-2xl bg-white shadow-sm transition-all hover:border-emerald-500 group w-full sm:w-auto justify-between sm:justify-start">
                             <Calendar size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />
                             <div className="flex flex-col">

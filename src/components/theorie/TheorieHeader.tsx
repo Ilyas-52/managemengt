@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown, UserPlus, Search, User, X } from 'lucide-react';
+import { ChevronDown, UserPlus, Search, User, X, LogOut } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Student {
     id: string;
@@ -61,6 +62,16 @@ export default function TheorieHeader({
 
         return groups;
     }, [displayStudents]);
+
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            window.localStorage.clear();
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout failed', error);
+        }
+    };
 
     return (
         <header className="sticky top-4 z-[150] w-full px-2 md:px-8">
@@ -223,8 +234,15 @@ export default function TheorieHeader({
                 </div>
 
                 {/* 3️⃣ اليمين: Profile (مخبي ف التلفون باش يخلي المساحة) */}
-                <div className="flex items-center shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-slate-100 p-0.5">
+                <div className="flex items-center shrink-0 gap-2">
+                    <button 
+                        onClick={handleLogout}
+                        className="flex items-center gap-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full text-xs font-black transition-colors"
+                    >
+                        <LogOut size={14} />
+                        <span className="hidden sm:inline">تسجيل الخروج</span>
+                    </button>
+                    <div className="hidden sm:flex w-10 h-10 rounded-full border-2 border-slate-100 p-0.5">
                         <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
                             <User size={18} />
                         </div>
