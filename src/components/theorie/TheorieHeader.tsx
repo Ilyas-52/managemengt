@@ -6,6 +6,7 @@ interface Student {
     first_name: string;
     last_name: string;
     license_type?: string;
+    status?: string;
 }
 
 interface HeaderProps {
@@ -48,11 +49,13 @@ export default function TheorieHeader({
         };
 
         displayStudents.forEach(s => {
-            const type = s.license_type || 'B';
-            if (groups[type]) {
-                groups[type].push(s);
-            } else {
-                groups['B'].push(s);
+            if (s.status !== 'archived') {
+                const type = s.license_type || 'B';
+                if (groups[type]) {
+                    groups[type].push(s);
+                } else {
+                    groups['B'].push(s);
+                }
             }
         });
 
@@ -211,6 +214,7 @@ export default function TheorieHeader({
                                     ))}
                                 </optgroup>
                             )}
+
                         </select>
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
                             <ChevronDown size={14} />

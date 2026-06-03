@@ -97,7 +97,15 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 supabase.from('vehicles').select('*').eq('agence_id', agenceId).order('created_at', { ascending: false }),
             ]);
 
-            setStudents(stRes.data || []);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const isHistorical = weekDate < todayStr;
+            
+            let fetchedStudents = stRes.data || [];
+            if (!isHistorical) {
+                fetchedStudents = fetchedStudents.filter((s: any) => s.status !== 'archived');
+            }
+            
+            setStudents(fetchedStudents);
             setAttendanceData(attRes.data || []);
             setVehicles(vehRes.data || []);
             setVehicleLog(logRes.data || { mileage_start: 0, mileage_end: 0, fuel_expense: 0 });
@@ -462,7 +470,6 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 staff_name: instructorName,
                 message: `${typeLabel} ${icon}: ${instructorName} سجل مبلغ ${newEntry.amount} DH ${finalDetailMsg}`,
                 type: isRecette ? 'CASH_IN' : 'CASH_OUT',
-                category: 'financial',
                 is_read: false
             }]);
 

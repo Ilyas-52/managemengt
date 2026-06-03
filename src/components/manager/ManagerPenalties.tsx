@@ -131,7 +131,7 @@ export default function ManagerPenalties() {
                     <tbody>${rows}</tbody>
                 </table>
 
-                <div class="footer">تم استخراج هذا التقرير رسمياً في: ${new Date().toLocaleString('ar-MA')}</div>
+                <div class="footer">تم استخراج هذا التقرير  في: ${new Date().toLocaleString('ar-MA')}</div>
                 <script>
                     window.onload = () => { 
                         setTimeout(() => { window.print(); }, 500); 

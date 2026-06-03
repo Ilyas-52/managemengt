@@ -463,6 +463,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const isSubmitting = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [selectedPrintType, setSelectedPrintType] = useState('B');
   // 1. زيد هاد السطر وسط الكومبوننت TheorieTerminal
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [formData, setFormData] = useState<TheoryFormData>({
@@ -480,7 +482,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     trainingLocation: 'lboubsi',
     paidTimbreIn: 0,
     paidMedicalIn: 0,
-    notes: ''
+    notes: '',
+    status: 'active'
   });
 
   const fetchAgencies = async () => {
@@ -546,7 +549,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       trainingLocation: 'lboubsi',
       paidTimbreIn: 0,
       paidMedicalIn: 0,
-      notes: ''
+      notes: '',
+      status: 'active'
     });
   };
 
@@ -591,7 +595,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
         trainingLocation: s.license_type === 'A' ? 'YOUNESS' : (s.training_location || 'lboubsi'),
         paidTimbreIn: s.paid_timbre_in || 0,
         paidMedicalIn: s.paid_medical_in || 0,
-        notes: s.notes || ''
+        notes: s.notes || '',
+        status: (s as any).status || 'active'
       });
     } else if (!selectedStudentId) {
       resetForm();
@@ -637,7 +642,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       t2_date: formData.t2_date || null,
       t3_date: formData.t3_date || null,
       t4_date: formData.t4_date || null,
-      t5_date: formData.t5_date || null
+      t5_date: formData.t5_date || null,
+      status: formData.status || 'active'
     } : {
       first_name: formData.firstName,
       last_name: formData.lastName,
@@ -666,7 +672,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       t5_medical_paid: formData.t5_medical || null,
       pratique_note: formData.pratiqueNote,
       registration_date: formData.registrationDate,
-      exam_date: formData.examDate || null
+      exam_date: formData.examDate || null,
+      status: formData.status || 'active'
     };
 
     try {
@@ -922,7 +929,10 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
                 </div>
                 <div className="flex justify-center w-full">
                   <button
-                    onClick={() => generateDetailedExamsPrint(sortedStudentsForPrint, examResults, agenceName, selectedDate)}
+                    onClick={() => {
+                      setSelectedPrintType('B');
+                      setIsPrintModalOpen(true);
+                    }}
                     className="w-full bg-slate-900 text-white h-[45px] px-4 rounded-xl text-[10px] font-black shadow-lg hover:bg-emerald-600 transition-all active:scale-95 flex items-center justify-center gap-2 border-2 border-slate-900"
                   >
                     <Printer size={14} /> استخراج النتائج (PDF)
@@ -940,6 +950,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
                 }}
                 handleSubmit={handleSubmit}
                 loading={loading}
+                students={students}
+                setSelectedStudentId={setSelectedStudentId}
               />
             </div>
           </>
@@ -984,6 +996,71 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
           </div>
         )}
       </main>
+
+      {/* Print Selection Modal */}
+      <AnimatePresence>
+        {isPrintModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-slate-900/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm border border-slate-100"
+              dir="rtl"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <Printer size={18} className="text-[#0F5A3E]" /> طباعة النتائج
+                </h3>
+                <button
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-4 font-bold">
+                اختر صنف الرخصة المراد طباعة تقريرها:
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {['B', 'C', 'D', 'E', 'A'].map((type) => {
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setSelectedPrintType(type)}
+                      className={`h-12 rounded-xl border-2 text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                        selectedPrintType === type
+                          ? 'border-[#0F5A3E] bg-emerald-50 text-[#0F5A3E]'
+                          : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
+                      }`}
+                    >
+                      Permis {type}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => {
+                  const filtered = sortedStudentsForPrint.filter(s => (s.license_type || 'B') === selectedPrintType);
+                  generateDetailedExamsPrint(filtered, examResults, agenceName, selectedDate);
+                  setIsPrintModalOpen(false);
+                }}
+                className="w-full bg-[#0F5A3E] text-white h-12 rounded-xl text-sm font-black shadow-lg hover:bg-emerald-800 transition-all flex items-center justify-center gap-2"
+              >
+                تأكيد وطباعة
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

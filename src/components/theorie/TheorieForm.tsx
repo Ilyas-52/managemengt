@@ -1,5 +1,6 @@
 'use client';
-import { Save, Activity, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { Save, Activity, Calendar, Search, X } from 'lucide-react';
 
 export interface FormData {
     firstName: string;
@@ -33,6 +34,7 @@ export interface FormData {
     paidTimbreIn?: number;
     paidMedicalIn?: number;
     notes?: string;
+    status?: string;
     [key: string]: any;
 }
 
@@ -41,14 +43,20 @@ interface TheorieFormProps {
     setFormData: React.Dispatch<React.SetStateAction<FormData>>;
     handleSubmit: (e: React.FormEvent) => Promise<void>;
     loading: boolean;
+    students?: any[];
+    setSelectedStudentId?: (id: string | null) => void;
 }
 
 export default function TheorieForm({
     formData,
     setFormData,
     handleSubmit,
-    loading
+    loading,
+    students,
+    setSelectedStudentId
 }: TheorieFormProps) {
+    const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+    const [archiveSearchTerm, setArchiveSearchTerm] = useState('');
 
     const handleInputChange = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const value = e.target.value;
@@ -123,6 +131,30 @@ export default function TheorieForm({
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-bold text-slate-500">تاريخ الامتحان</label>
                         <input type="date" value={formData.examDate || ''} onChange={handleInputChange('examDate')} className="w-full h-14 px-4 border border-slate-300 rounded-xl outline-none text-right font-bold" style={{ direction: 'ltr' }} />
+                    </div>
+                    <div className="col-span-1 md:col-span-2 flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                            <label className="text-sm font-bold text-slate-500">حالة الملف</label>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsArchiveModalOpen(true)}
+                                className="text-[11px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
+                            >
+                                🔍 فتح أرشيف المترشحين
+                            </button>
+                        </div>
+                        <select
+                            value={formData.status || 'active'}
+                            onChange={handleInputChange('status')}
+                            className={`w-full h-14 px-4 rounded-xl outline-none text-center font-bold text-lg transition-all border ${
+                                formData.status === 'archived' 
+                                    ? 'bg-rose-50 text-rose-600 border-rose-300' 
+                                    : 'bg-white text-slate-900 border-slate-300 focus:border-emerald-500'
+                            }`}
+                        >
+                            <option value="active">🟢 ملف جاري ونشط</option>
+                            <option value="archived">🗂️ مؤرشف منتهي</option>
+                        </select>
                     </div>
                 </div>
 
@@ -283,6 +315,52 @@ export default function TheorieForm({
                     {loading ? 'جاري الحفظ...' : 'حفظ البيانات'}
                 </button>
             </div>
+            
+            {isArchiveModalOpen && students && setSelectedStudentId && (
+                <div className="fixed inset-0 z-[300] bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                🗂️ أرشيف المترشحين
+                            </h3>
+                            <button type="button" onClick={() => setIsArchiveModalOpen(false)} className="text-slate-400 hover:text-rose-500 p-1">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="relative">
+                                <Search size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="بحث في الأرشيف..."
+                                    value={archiveSearchTerm}
+                                    onChange={(e) => setArchiveSearchTerm(e.target.value)}
+                                    className="w-full pl-4 pr-10 py-3 bg-slate-100 border-none rounded-xl text-sm font-bold outline-none focus:ring-2 ring-emerald-500/20"
+                                />
+                            </div>
+                            <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                {students.filter(s => s.status === 'archived' && (`${s.first_name} ${s.last_name}`).toLowerCase().includes(archiveSearchTerm.toLowerCase())).map(s => (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedStudentId(s.id);
+                                            setIsArchiveModalOpen(false);
+                                        }}
+                                        className="w-full text-right p-3 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all group flex justify-between items-center"
+                                    >
+                                        <span className="font-bold text-slate-700 group-hover:text-emerald-600 text-sm">{s.first_name} {s.last_name}</span>
+                                        <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded-md">{s.license_type || 'B'}</span>
+                                    </button>
+                                ))}
+                                {students.filter(s => s.status === 'archived').length === 0 && (
+                                    <div className="text-center py-6 text-slate-400 text-sm font-bold">لا يوجد مترشحين في الأرشيف</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </form>
     );
 }
