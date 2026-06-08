@@ -551,6 +551,20 @@ export default function ManagerTerminal() {
                         <span className="flex items-center gap-2">   نضام عقوبات العاملين  </span>
                         <Scale size={16} />
                     </button>
+                    {/* 🗂️ مراقبة أسطول السيارات */}
+                    <button
+                        onClick={() => {
+                            setActiveStaff('fleetOperations');
+                            setShowNathariSub(false);
+                            setShowHamzaSub(false);
+                            setShowAgenciesMenu(false);
+                            setIsSidebarOpen(false); // For mobile
+                        }}
+                        className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+                            ${activeStaff === 'fleetOperations' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                    >
+                        <span className="flex items-center gap-2">🗂️   طلبات تسليم وارجاع السيارات</span>
+                    </button>
                 </div>
                 <div className="mt-auto pt-10 text-[9px] text-slate-300 font-bold text-center italic uppercase">v2.0 • Powered by Mahamran</div>
             </aside>
@@ -583,7 +597,7 @@ export default function ManagerTerminal() {
                     </div>
 
                     <div className="flex flex-row items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                        <button 
+                        <button
                             onClick={handleLogout}
                             className="flex items-center gap-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 p-2 sm:px-3 sm:py-1.5 rounded-full text-xs font-black transition-colors border border-rose-100"
                         >
@@ -626,6 +640,10 @@ export default function ManagerTerminal() {
                     ) : activeStaff === 'penalties' ? ( // 🟢 المسمار الجديد: عزل وقراءة صفحة العقوبات فوريّاً
                         <div className="max-w-[1600px] mx-auto">
                             <ManagerPenalties />
+                        </div>
+                    ) : activeStaff === 'fleetOperations' ? (
+                        <div className="max-w-[1600px] mx-auto">
+                            <ManagerFleetOperations />
                         </div>
                     ) : ( // ⬅️ هنا كـيـتـكـمّـل الـ شرط للـ الأقسام لي باقة عندك تـحـت فـ الـ كود
                         <div className="max-w-[1600px] mx-auto space-y-8">
@@ -870,10 +888,231 @@ export default function ManagerTerminal() {
                                 <span className="flex items-center gap-2">  نضام عقوبات العاملين </span>
                                 <Scale size={16} />
                             </button>
+                            {/* 🗂️ مراقبة أسطول السيارات (Mobile) */}
+                            <button
+                                onClick={() => {
+                                    setActiveStaff('fleetOperations');
+                                    setShowNathariSub(false);
+                                    setShowHamzaSub(false);
+                                    setShowAgenciesMenu(false);
+                                    setIsSidebarOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+                                    ${activeStaff === 'fleetOperations' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                            >
+                                <span className="hidden sm:flex items-center gap-2">🗂️  طلبات تسليم وارجاع السيارات </span>
+                                <span className="sm:hidden flex items-center justify-center w-8 h-8 rounded-xl bg-slate-200 text-slate-700">
+                                    <Car size={16} />
+                                </span>
+                            </button>
                         </div>
                     </aside>
                 </div>
             )}
         </div>
+    );
+}
+
+// ==========================================
+// Fleet Control Panel (Fleet Operations)
+// ==========================================
+function ManagerFleetOperations() {
+    const [records, setRecords] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    // 1️⃣ التعديل: البداية التلقائية ديريكت بـ Clio 4 ف البلاصة د الكل
+    const [vehicleFilter, setVehicleFilter] = useState('Clio 4');
+
+    const fetchRecords = async (filter: string) => {
+        setLoading(true);
+
+        // غانـاخدو غي الكلمة الأولى د الطوموبيل (مثلاً Peugeot ف بلاصة Peugeot 208) باش نطابقو مع التيرمينالز
+        const cleanFilter = filter.split(' ')[0].trim();
+
+        const { data } = await supabase
+            .from('fleet_operations')
+            .select('*')
+            .ilike('vehicle_name', `%${cleanFilter}%`) // فلتر ذكي كيجيب الكلمة وخا تكون جزء من النص
+            .order('created_at', { ascending: false });
+
+        if (data) setRecords(data);
+        setLoading(false);
+    };
+
+    useEffect(() => { fetchRecords(vehicleFilter); }, [vehicleFilter]);
+
+    const handleVehicleChange = (val: string) => {
+        setVehicleFilter(val);
+    };
+
+    const handleSave = async (id: string, max_vitesse: string, manager_notes: string) => {
+        const { error } = await supabase
+            .from('fleet_operations')
+            .update({ max_vitesse, manager_notes })
+            .eq('id', id);
+        if (!error) {
+            alert('✅ تم تحديث بيانات المراقبة بنجاح');
+            fetchRecords(vehicleFilter);
+        } else {
+            alert('Error: ' + error.message);
+        }
+    };
+
+    const getDriverBadge = () => {
+        if (vehicleFilter === 'Clio 4') return "👤 السائق: بلال • وكالة كرونا";
+        if (vehicleFilter === 'Peugeot 208') return "👤 السائق: حمزة • وكالة بودينار";
+        if (vehicleFilter === 'Opel Corsa') return "👤    السائق: بلقاسمي  • وكالة تازغين";
+        if (vehicleFilter === 'Dacia Logan') return "👤   السائق: إسماعيل  • وكالة ازغار";
+        return "🗂️ سيارة الأسطول الحالية";
+    };
+
+    return (
+        <div className="bg-white p-6 md:p-8 rounded-[35px] shadow-sm border border-slate-200 w-full" dir="rtl">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-100 pb-6">
+                <div>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
+                        <Car size={22} className="text-slate-700" />   طلبات تسليم وارجاع السيارات
+                    </h2>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 inline-block">
+                        {getDriverBadge()}
+                    </span>
+                </div>
+                <div className="w-full md:w-56">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">تصفية حسب السيارة</label>
+                    <select
+                        value={vehicleFilter}
+                        onChange={(e) => handleVehicleChange(e.target.value)}
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer"
+                    >
+                        {/* 3️⃣ التعديل: تطيير خيار "الكل" وبقاء أسماء السيارات فقط */}
+                        <option value="Clio 4">Clio 4</option>
+                        <option value="Peugeot 208">Peugeot 208</option>
+                        <option value="Opel Corsa">Opel Corsa</option>
+                        <option value="Dacia Logan">Dacia Logan</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto w-full">
+                <table className="w-full text-right border-collapse text-xs font-black" style={{ minWidth: '1200px' }}>
+                    <thead>
+                        <tr className="bg-slate-50 border-b-2 border-slate-200 text-slate-400 text-[11px] uppercase">
+                            <th className="p-3 rounded-tr-xl">الحالة</th>
+                            <th className="p-3">السيارة</th>
+                            <th className="p-3">من</th>
+                            <th className="p-3">الى</th>
+                            <th className="p-3">📥 تسليم (KM / تاريخ)</th>
+                            <th className="p-3">📤 إرجاع (KM / تاريخ)</th>
+                            <th className="p-3">مسافة</th>
+                            <th className="p-3">البنزين</th>
+                            <th className="p-3">صور</th>
+                            <th className="p-3">لسرعة القصوى</th>
+                            <th className="p-3">ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-800">
+                        {records.map(row => (
+                            <FleetRow key={row.id} row={row} onSave={handleSave} />
+                        ))}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    );
+}
+
+function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void }) {
+    const [maxVitesse, setMaxVitesse] = useState(row.max_vitesse || '');
+    const [managerNotes, setManagerNotes] = useState(row.manager_notes || '');
+
+    const isClosed = row.status === 'closed';
+    const images: string[] = Array.isArray(row.images_urls) ? row.images_urls : [];
+
+    return (
+        <tr className="hover:bg-slate-50/60 transition-colors align-top">
+            {/* Status Badge */}
+            <td className="p-3">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide whitespace-nowrap ${isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                    {isClosed ? '✅ مغلق' : '🟡 مفتوح'}
+                </span>
+            </td>
+            {/* Vehicle */}
+            <td className="p-3 text-slate-700 whitespace-nowrap">{row.vehicle_name || '---'}</td>
+            {/* Operator */}
+            <td className="p-3 text-slate-700 whitespace-nowrap">{row.operator_name || '---'}</td>
+            {/* Counterparty */}
+            <td className="p-3 text-slate-600 whitespace-nowrap">{row.counterparty_name || '---'}</td>
+            {/* Handover */}
+            <td className="p-3" dir="ltr">
+                <div className="flex flex-col items-end gap-0.5">
+                    <span className="font-bold text-slate-900">{row.km_reading ?? '---'} km</span>
+                    <span className="text-[10px] text-slate-400">{row.log_date} {row.log_time}</span>
+                </div>
+            </td>
+            {/* Return */}
+            <td className="p-3" dir="ltr">
+                {isClosed ? (
+                    <div className="flex flex-col items-end gap-0.5">
+                        <span className="font-bold text-slate-900">{row.km_reading_return ?? '---'} km</span>
+                        <span className="text-[10px] text-slate-400">{row.log_date_return} {row.log_time_return}</span>
+                    </div>
+                ) : (
+                    <span className="text-slate-300 italic text-[10px]">لم يُرجع بعد</span>
+                )}
+            </td>
+            {/* Distance (read-only badge) */}
+            <td className="p-3">
+                {isClosed && row.distance_traveled != null ? (
+                    <span className="bg-blue-50 text-blue-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
+                        {row.distance_traveled} km
+                    </span>
+                ) : <span className="text-slate-300">---</span>}
+            </td>
+            {/* Fuel (read-only badge) */}
+            <td className="p-3">
+                {isClosed && row.fuel_expenses != null ? (
+                    <span className="bg-orange-50 text-orange-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
+                        {row.fuel_expenses} DH
+                    </span>
+                ) : <span className="text-slate-300">---</span>}
+            </td>
+            {/* Images */}
+            <td className="p-3">
+                {images.length > 0 ? (
+                    <div className="flex gap-1 flex-wrap">
+                        {images.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                <img src={url} alt="" className="w-9 h-9 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
+                            </a>
+                        ))}
+                    </div>
+                ) : <span className="text-slate-300">---</span>}
+            </td>
+            {/* GPRS (manager editable) */}
+            <td className="p-3">
+                <input
+                    type="text"
+                    value={maxVitesse}
+                    onChange={e => setMaxVitesse(e.target.value)}
+                    placeholder="km/h"
+                    className="w-16 bg-slate-50 border-2 border-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-slate-300 text-center text-xs font-bold"
+                />
+            </td>
+            {/* Manager Notes (manager editable) */}
+            <td className="p-3">
+                <input
+                    type="text"
+                    value={managerNotes}
+                    onChange={e => setManagerNotes(e.target.value)}
+                    placeholder="ملاحظات..."
+                    className="w-36 bg-slate-50 border-2 border-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-slate-300 text-xs font-bold"
+                />
+            </td>
+            {/* Save */}
+
+        </tr>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, FileText, UserCircle, LogOut } from 'lucide-react';
+import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, FileText, UserCircle, LogOut, X, ClipboardList } from 'lucide-react';
 
 // Shared Components
 import PracticalPlanning from '@/components/pratique/HamzaPlanning';
@@ -27,6 +27,19 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     const [loading, setLoading] = useState(true);
     const [weekDate, setWeekDate] = useState(new Date().toISOString().split('T')[0]);
     const [activeTab, setActiveTab] = useState('planning');
+
+    // Fleet Modal States
+    const [isFleetModalOpen, setIsFleetModalOpen] = useState(false);
+    const [fleetFormData, setFleetFormData] = useState({
+        action_type: 'handover',
+        vehicle_name: 'Peugeot',
+        counterparty_name: '',
+        log_date: new Date().toISOString().split('T')[0],
+        log_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+        km_reading: '',
+        fuel_expenses: '',
+    });
+    const [fleetImages, setFleetImages] = useState<File[]>([]);
 
     // Data states
     const [students, setStudents] = useState<Student[]>([]);
@@ -109,12 +122,12 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
 
             const todayStr = new Date().toISOString().split('T')[0];
             const isHistorical = weekDate < todayStr;
-            
+
             let fetchedStudents = stRes.data || [];
             if (!isHistorical) {
                 fetchedStudents = fetchedStudents.filter((s: any) => s.status !== 'archived');
             }
-            
+
             setStudents(fetchedStudents);
             setAttendanceData(attRes.data || []);
             setVehicles(vehRes.data || []);
@@ -571,6 +584,99 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
         }
     };
 
+    // 📸 دالة رفع الصور بالجملة إلى Supabase Storage
+    const uploadImages = async (files: File[]): Promise<string[]> => {
+        if (!files || files.length === 0) return [];
+        const urls = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]; // دابا الـ file غايتقرا ناضي حيت prev جمعاتهم كأري
+            const ext = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+
+            const { data } = await supabase.storage.from('vehicle-photos').upload(fileName, file);
+            if (data) {
+                const { data: publicUrlData } = supabase.storage.from('vehicle-photos').getPublicUrl(fileName);
+                urls.push(publicUrlData.publicUrl);
+            }
+        }
+        return urls;
+    };
+
+    // 🚀 الدالة الكبيرة لإرسال وحفظ بيانات أسطول السيارات
+    const handleFleetSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            if (fleetFormData.action_type === 'handover') {
+                // 📥 عملية التسليم (خروج السيارة) - إدخال سطر جديد مفتوح
+                const { error } = await supabase.from('fleet_operations').insert([{
+                    vehicle_name: fleetFormData.vehicle_name,
+                    action_type: 'handover',
+                    operator_name: instructorName,
+                    counterparty_name: fleetFormData.counterparty_name,
+                    log_date: fleetFormData.log_date,
+                    log_time: fleetFormData.log_time,
+                    km_reading: Number(fleetFormData.km_reading),
+                    status: 'open',
+                    images_urls: []
+                }]);
+                if (error) throw error;
+            } else {
+                // 📤 عملية الإرجاع (دخول السيارة) - تحديث السطر المفتوح
+                const { data: openRow, error: fetchErr } = await supabase.from('fleet_operations')
+                    .select('*')
+                    .eq('vehicle_name', fleetFormData.vehicle_name)
+                    .eq('status', 'open')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (fetchErr || !openRow) {
+                    throw new Error("لا توجد عملية تسليم (خروج) مفتوحة لهذه السيارة لتسجيل إرجاعها.");
+                }
+
+                // رفع جميع الصور المحددة دفعة واحدة وجلب روابطها
+                const uploadedUrls = await uploadImages(fleetImages);
+                // حساب المسافة المقطوعة أوتوماتيكياً
+                const distance = Number(fleetFormData.km_reading) - Number(openRow.km_reading);
+
+                const { error: updateErr } = await supabase.from('fleet_operations')
+                    .update({
+                        log_date_return: fleetFormData.log_date,
+                        log_time_return: fleetFormData.log_time,
+                        km_reading_return: Number(fleetFormData.km_reading),
+                        fuel_expenses: Number(fleetFormData.fuel_expenses) || 0,
+                        images_urls: uploadedUrls, // هنا كتحط المصفوفة كاملة د الروابط
+                        distance_traveled: distance,
+                        status: 'closed'
+                    })
+                    .eq('id', openRow.id);
+
+                if (updateErr) throw updateErr;
+            }
+
+            alert('✅ تم تسجيل العملية بنجاح');
+            setIsFleetModalOpen(false);
+
+            // إعادة تعيين الفورم إلى الحالة الافتراضية
+            setFleetFormData({
+                action_type: 'handover',
+                vehicle_name: 'Peugeot',
+                counterparty_name: '',
+                log_date: new Date().toISOString().split('T')[0],
+                log_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
+                km_reading: '',
+                fuel_expenses: '',
+            });
+            setFleetImages([]);
+        } catch (error: any) {
+            alert('Error: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const addOrUpdateStudent = (name: string) => {
         if (showModal) {
             const { day, type, index } = showModal;
@@ -597,7 +703,14 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                         </div>
                     </div>
                     <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-3">
-                        <button 
+                        <button
+                            onClick={() => setIsFleetModalOpen(true)}
+                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-slate-700 bg-slate-100 hover:bg-slate-200 px-4 py-2.5 rounded-2xl sm:rounded-full text-xs font-black transition-colors border border-slate-200 shadow-sm"
+                        >
+                            <ClipboardList size={16} />
+                            <span>📋 طلب تسليم أو إرجاع سيارة</span>
+                        </button>
+                        <button
                             onClick={handleLogout}
                             className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 px-4 py-2.5 rounded-2xl sm:rounded-full text-xs font-black transition-colors border border-rose-100"
                         >
@@ -651,6 +764,95 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
 
                 <PracticalPlanningModal showModal={showModal} setShowModal={setShowModal} students={students} addOrUpdateStudent={addOrUpdateStudent} />
             </div>
+
+            {/* Fleet Operations Modal */}
+            {isFleetModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" dir="rtl">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-lg border border-slate-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black text-slate-800">📋 طلب تسليم أو إرجاع سيارة</h2>
+                            <button onClick={() => setIsFleetModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleFleetSubmit} className="space-y-5">
+                            {/* Toggle Action Type */}
+                            <div className="flex bg-slate-100 p-1 rounded-xl">
+                                <button type="button" onClick={() => setFleetFormData({ ...fleetFormData, action_type: 'handover' })} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>
+                                    📥 تسليم (خروج)
+                                </button>
+                                <button type="button" onClick={() => setFleetFormData({ ...fleetFormData, action_type: 'return' })} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>
+                                    📤 إرجاع (دخول)
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">السيارة</label>
+                                    <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300">
+                                        <option value="Peugeot">Peugeot</option>
+                                        <option value="Dacia Logan">Dacia Logan</option>
+                                        <option value="Renault Clio">Renault Clio</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1"> الطرف المستلم للسيارة </label>
+                                    <input type="text" required value={fleetFormData.counterparty_name} onChange={(e) => setFleetFormData({ ...fleetFormData, counterparty_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="مثال: حمزة، يوسف..." />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">التاريخ</label>
+                                    <input type="date" required value={fleetFormData.log_date} onChange={(e) => setFleetFormData({ ...fleetFormData, log_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الوقت</label>
+                                    <input type="time" required value={fleetFormData.log_time} onChange={(e) => setFleetFormData({ ...fleetFormData, log_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الكيلومتراج (KM)</label>
+                                    <input type="number" required value={fleetFormData.km_reading} onChange={(e) => setFleetFormData({ ...fleetFormData, km_reading: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
+                                </div>
+                                {fleetFormData.action_type === 'return' && (
+                                    <>
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">مصاريف الوقود (DH)</label>
+                                            <input type="number" required value={fleetFormData.fuel_expenses} onChange={(e) => setFleetFormData({ ...fleetFormData, fuel_expenses: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">صور السيارة (اختياري)</label>
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    if (e.target.files) {
+                                                        // تحويل الـ FileList لمصفوفة وجمعها مع التصاور القدام
+                                                        const newFiles = Array.from(e.target.files);
+                                                        setFleetImages((prev) => [...prev, ...newFiles]);
+                                                    }
+                                                }}
+                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300"
+                                            />
+
+                                            {/* 💡 توشية د ابن آدم النقي: غانزيدو هاد السطر الصغير تلو الـ Input باش يبان للخدام شحال من تصويرة عزل دابا */}
+                                            {fleetImages.length > 0 && (
+                                                <p className="text-[10px] font-black text-emerald-600 mt-1">
+                                                    📊 تم اختيار {fleetImages.length} صور بنجاح.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-black mt-2 hover:bg-slate-800 transition-colors disabled:opacity-50">
+                                {loading ? 'جاري الحفظ...' : '✅ تأكيد العملية'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
         </div>
     );
