@@ -99,7 +99,7 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
                     body { font-family: 'Tajawal', sans-serif; padding: 20px; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .header { text-align: center; border: 4px solid #000; padding: 15px; margin-bottom: 20px; }
-                    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 30px; }
                     th, td { border: 2px solid #000; padding: 10px; text-align: center; font-weight: 700; }
                     th { background: #f2f2f2 !important; -webkit-print-color-adjust: exact !important; }
                     .day-cell { background: #f9f9f9 !important; width: 80px; font-weight: 900; }
@@ -110,6 +110,38 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         font-weight: 900 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                    }
+                    
+                    /* 🎨 ستايل الإطار الأخضر الفاتح والتنبيه النقي كالحقيقة */
+                    .notice-box {
+                        background-color: #b8dc44 !important;
+                        border: 3px solid #a3c437;
+                        border-radius: 25px;
+                        padding: 20px;
+                        margin-top: 30px;
+                        text-align: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notice-text {
+                        color: #0f172a;
+                        font-size: 16px;
+                        font-weight: 900;
+                        line-height: 1.6;
+                        margin: 0 0 12px 0;
+                    }
+                    .phone-container {
+                        display: inline-block;
+                        border-bottom: 4px solid #dc2626;
+                        padding-bottom: 2px;
+                        margin-bottom: 5px;
+                    }
+                    .phone-number {
+                        color: #dc2626;
+                        font-size: 26px;
+                        font-weight: 900;
+                        letter-spacing: 1px;
                     }
                 </style>
             </head>
@@ -122,6 +154,17 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                     <thead><tr><th class="day-cell">اليوم</th><th>الصباح</th><th>المساء</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
+                
+               
+                <div class="notice-box">
+                    <p class="notice-text">
+                         لأي استفسار أو طرح أي تساؤل،المرجو إرسال رسالة صوتية أو كتابية إلى صاحب المؤسسة على الرقم:
+                    </p>
+                    <div class="phone-container">
+                        <span class="phone-number">0688774026</span>
+                    </div>
+                </div>
+
                 <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); };</script>
             </body>
             </html>

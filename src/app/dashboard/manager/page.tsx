@@ -897,12 +897,17 @@ export default function ManagerTerminal() {
                                     setShowAgenciesMenu(false);
                                     setIsSidebarOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
-                                    ${activeStaff === 'fleetOperations' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+                                className={`w-full flex items-center gap-3 p-4 rounded-[25px] border-2 font-black italic transition-all mt-2 text-xs md:text-sm
+        ${activeStaff === 'fleetOperations' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
                             >
-                                <span className="hidden sm:flex items-center gap-2">🗂️  طلبات تسليم وارجاع السيارات </span>
-                                <span className="sm:hidden flex items-center justify-center w-8 h-8 rounded-xl bg-slate-200 text-slate-700">
+                                {/* 🗂️ الـ أَيْقُونَة دِيعْمَا بَايْنَة فـ الـجَنْبْ فـ كَاع الـشَّاشَاتْ */}
+                                <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-slate-200/50 text-slate-700 shrink-0">
                                     <Car size={16} />
+                                </span>
+
+                                {/* 📝 الـكِتَابَة دَابَا مَأْمَّنَة وغَاتِطْلَعْ فـ الـتِّيلِيفُونْ والـ PC بـزُوجْ بـ تَنَاسُقْ عَالَمِي */}
+                                <span className="block text-right whitespace-nowrap overflow-hidden text-ellipsis">
+                                    طلبات تسليم وارجاع السيارات
                                 </span>
                             </button>
                         </div>
@@ -956,6 +961,35 @@ function ManagerFleetOperations() {
             alert('Error: ' + error.message);
         }
     };
+    // 🗑️ دالة حذف عملية من الأسطول بالكامل
+    // 🗑️ دالة حذف عملية من الأسطول مأمنة 100% بلا خط أحمر
+    const handleDeleteFleet = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('fleet_operations')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            alert('✅ تم حذف العملية بنجاح');
+
+            // ريفريش ذكي: إيلا كانت الدالة مبرمجة غاتخدم، إيلا لا غاتريفريشي الباج كاملة ف البلاصة
+            window.location.reload();
+
+        } catch (error: any) {
+            alert('❌ خطأ في الحذف: ' + error.message);
+        }
+    };
+
+    // 📝 دالة فتح التعديل (كتفتح المودال أو الفورم للتعديل)
+    const handleEditFleet = (row: any) => {
+        // إيلا عندك مودال د التعديل كتحط السطر هنا، مثلاً:
+        // setSelectedFleetRow(row);
+        // setIsEditModalOpen(true);
+        console.log("📝 Editing row:", row);
+        alert('خاصية التعديل السريع قيد التطوير أو يمكنك ربطها بـ Modal التعديل الخاص بك.');
+    };
 
     const getDriverBadge = () => {
         if (vehicleFilter === 'Clio 4') return "👤 السائق: بلال • وكالة كرونا";
@@ -984,7 +1018,6 @@ function ManagerFleetOperations() {
                         onChange={(e) => handleVehicleChange(e.target.value)}
                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer"
                     >
-                        {/* 3️⃣ التعديل: تطيير خيار "الكل" وبقاء أسماء السيارات فقط */}
                         <option value="Clio 4">Clio 4</option>
                         <option value="Peugeot 208">Peugeot 208</option>
                         <option value="Opel Corsa">Opel Corsa</option>
@@ -995,7 +1028,7 @@ function ManagerFleetOperations() {
 
             {/* Table */}
             <div className="overflow-x-auto w-full">
-                <table className="w-full text-right border-collapse text-xs font-black" style={{ minWidth: '1200px' }}>
+                <table className="w-full text-right border-collapse text-xs font-black" style={{ minWidth: '1300px' }}>
                     <thead>
                         <tr className="bg-slate-50 border-b-2 border-slate-200 text-slate-400 text-[11px] uppercase">
                             <th className="p-3 rounded-tr-xl">الحالة</th>
@@ -1006,41 +1039,64 @@ function ManagerFleetOperations() {
                             <th className="p-3">📤 إرجاع (KM / تاريخ)</th>
                             <th className="p-3">مسافة</th>
                             <th className="p-3">البنزين</th>
-                            <th className="p-3">صور</th>
-                            <th className="p-3">لسرعة القصوى</th>
+                            {/* 📸 الفرز د الخانات د الصور */}
+                            <th className="p-3 text-center">📸 صور التسليم</th>
+                            <th className="p-3 text-center">📸 صور الإرجاع</th>
+                            <th className="p-3">السرعة القصوى</th>
                             <th className="p-3">ملاحظات</th>
+                            <th className="p-3 text-center rounded-tl-xl">🛠️ الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-800">
                         {records.map(row => (
-                            <FleetRow key={row.id} row={row} onSave={handleSave} />
+                            <FleetRow key={row.id} row={row} onSave={handleSave} onDelete={handleDeleteFleet} onEdit={handleEditFleet} />
                         ))}
                     </tbody>
                 </table>
-
             </div>
         </div>
     );
 }
 
-function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void }) {
+function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void; onDelete?: (id: string) => void; onEdit?: (row: any) => void }) {
     const [maxVitesse, setMaxVitesse] = useState(row.max_vitesse || '');
     const [managerNotes, setManagerNotes] = useState(row.manager_notes || '');
 
+    // 🔒 ساروت التحكم: واش الخانات مفتوحين للتعديل أو مقفولين
+    const [isEditable, setIsEditable] = useState(false);
+
     const isClosed = row.status === 'closed';
-    const images: string[] = Array.isArray(row.images_urls) ? row.images_urls : [];
+
+    // تفكيك النص الطويل وتحويله لمصفوفة
+    let images: any[] = [];
+    if (row.images_urls) {
+        if (typeof row.images_urls === 'string') {
+            try {
+                const firstParse = JSON.parse(row.images_urls);
+                if (Array.isArray(firstParse)) images = firstParse;
+                else images = [row.images_urls];
+            } catch (e) { images = [row.images_urls]; }
+        } else if (Array.isArray(row.images_urls)) {
+            images = row.images_urls;
+        }
+    }
+
+    const handleConfirmSave = () => {
+        // عيط للدالة د الحفظ الأصلية ديالك وصيفط ليها الداتا
+        onSave(row.id, maxVitesse, managerNotes);
+        setIsEditable(false); // قفل الخانات عاوتاني مورا الحفظ
+    };
 
     return (
-        <tr className="hover:bg-slate-50/60 transition-colors align-top">
+        <tr className={`hover:bg-slate-50/60 transition-colors align-top border-b border-slate-100 ${isEditable ? 'bg-amber-50/20' : ''}`}>
             {/* Status Badge */}
             <td className="p-3">
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide whitespace-nowrap ${isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide whitespace-nowrap ${isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isClosed ? '✅ مغلق' : '🟡 مفتوح'}
                 </span>
             </td>
             {/* Vehicle */}
-            <td className="p-3 text-slate-700 whitespace-nowrap">{row.vehicle_name || '---'}</td>
+            <td className="p-3 text-slate-700 whitespace-nowrap font-black">{row.vehicle_name || '---'}</td>
             {/* Operator */}
             <td className="p-3 text-slate-700 whitespace-nowrap">{row.operator_name || '---'}</td>
             {/* Counterparty */}
@@ -1049,7 +1105,7 @@ function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse:
             <td className="p-3" dir="ltr">
                 <div className="flex flex-col items-end gap-0.5">
                     <span className="font-bold text-slate-900">{row.km_reading ?? '---'} km</span>
-                    <span className="text-[10px] text-slate-400">{row.log_date} {row.log_time}</span>
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">{row.log_date} {row.log_time}</span>
                 </div>
             </td>
             {/* Return */}
@@ -1057,13 +1113,13 @@ function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse:
                 {isClosed ? (
                     <div className="flex flex-col items-end gap-0.5">
                         <span className="font-bold text-slate-900">{row.km_reading_return ?? '---'} km</span>
-                        <span className="text-[10px] text-slate-400">{row.log_date_return} {row.log_time_return}</span>
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">{row.log_date_return} {row.log_time_return}</span>
                     </div>
                 ) : (
-                    <span className="text-slate-300 italic text-[10px]">لم يُرجع بعد</span>
+                    <span className="text-slate-300 italic text-[10px] whitespace-nowrap">لم يُرجع بعد</span>
                 )}
             </td>
-            {/* Distance (read-only badge) */}
+            {/* Distance */}
             <td className="p-3">
                 {isClosed && row.distance_traveled != null ? (
                     <span className="bg-blue-50 text-blue-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
@@ -1071,7 +1127,7 @@ function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse:
                     </span>
                 ) : <span className="text-slate-300">---</span>}
             </td>
-            {/* Fuel (read-only badge) */}
+            {/* Fuel */}
             <td className="p-3">
                 {isClosed && row.fuel_expenses != null ? (
                     <span className="bg-orange-50 text-orange-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
@@ -1079,40 +1135,121 @@ function FleetRow({ row, onSave }: { row: any; onSave: (id: string, max_vitesse:
                     </span>
                 ) : <span className="text-slate-300">---</span>}
             </td>
-            {/* Images */}
-            <td className="p-3">
-                {images.length > 0 ? (
-                    <div className="flex gap-1 flex-wrap">
-                        {images.map((url, i) => (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                <img src={url} alt="" className="w-9 h-9 object-cover rounded-lg border border-slate-200 hover:scale-110 transition-transform" />
-                            </a>
-                        ))}
-                    </div>
-                ) : <span className="text-slate-300">---</span>}
+
+            {/* 📥 صور التسليم */}
+            <td className="p-3 border-b text-center align-middle">
+                <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
+                    {images.map((imgStr: any, i: number) => {
+                        try {
+                            const parsed = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
+                            if (parsed && parsed.type === 'handover') {
+                                return (
+                                    <img key={i} src={parsed.url} alt="تسليم" className="w-10 h-10 object-cover rounded-xl border-2 border-emerald-100 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(parsed.url, '_blank')} />
+                                );
+                            }
+                        } catch (e) {
+                            if (typeof imgStr === 'string' && !imgStr.includes('"type"')) {
+                                return (
+                                    <img key={i} src={imgStr} alt="قديم" className="w-10 h-10 object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(imgStr, '_blank')} />
+                                );
+                            }
+                        }
+                        return null;
+                    }).filter(Boolean)}
+                    {images.filter(imgStr => {
+                        try {
+                            const p = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
+                            return p.type === 'handover' || (typeof imgStr === 'string' && !imgStr.includes('"type"'));
+                        } catch { return true; }
+                    }).length === 0 && <span className="text-slate-300 font-bold col-span-2 text-center">—</span>}
+                </div>
             </td>
-            {/* GPRS (manager editable) */}
+
+            {/* 📤 صور الإرجاع */}
+            <td className="p-3 border-b text-center align-middle">
+                <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
+                    {images.map((imgStr: any, i: number) => {
+                        try {
+                            const parsed = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
+                            if (parsed && parsed.type === 'return') {
+                                return (
+                                    <img key={i} src={parsed.url} alt="إرجاع" className="w-10 h-10 object-cover rounded-xl border-2 border-blue-100 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(parsed.url, '_blank')} />
+                                );
+                            }
+                        } catch (e) { return null; }
+                        return null;
+                    }).filter(Boolean)}
+                    {images.filter(imgStr => {
+                        try {
+                            const p = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
+                            return p.type === 'return';
+                        } catch { return false; }
+                    }).length === 0 && <span className="text-slate-300 font-bold col-span-2 text-center">—</span>}
+                </div>
+            </td>
+
+            {/* 🏎️ السرعة القصوى: مقفولة أوتوماتيك ومفتوحة غي بـ زر تعديل */}
             <td className="p-3">
                 <input
                     type="text"
+                    disabled={!isEditable} // 🔒 قفل صارم هنا
                     value={maxVitesse}
                     onChange={e => setMaxVitesse(e.target.value)}
                     placeholder="km/h"
-                    className="w-16 bg-slate-50 border-2 border-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-slate-300 text-center text-xs font-bold"
+                    className={`w-16 border-2 rounded-lg px-2 py-1.5 outline-none text-center text-xs font-bold transition-colors ${isEditable ? 'bg-white border-amber-400 focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed'}`}
                 />
             </td>
-            {/* Manager Notes (manager editable) */}
+            {/* 📝 الملاحظات: مقفولة أوتوماتيك ومفتوحة غي بـ زر تعديل */}
             <td className="p-3">
                 <input
                     type="text"
+                    disabled={!isEditable} // 🔒 قفل صارم هنا
                     value={managerNotes}
                     onChange={e => setManagerNotes(e.target.value)}
                     placeholder="ملاحظات..."
-                    className="w-36 bg-slate-50 border-2 border-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-slate-300 text-xs font-bold"
+                    className={`w-36 border-2 rounded-lg px-2 py-1.5 outline-none text-xs font-bold transition-colors ${isEditable ? 'bg-white border-amber-400 focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed'}`}
                 />
             </td>
-            {/* Save */}
 
+            {/* 🛠️ الإجراءات الفنية الصافية */}
+            <td className="p-3 text-center">
+                <div className="flex flex-col items-center gap-1 min-w-[120px]">
+                    {/* بوطون الحفظ كيبان غي إيلا برك على تعديل وفتح الخانات */}
+                    {isEditable ? (
+                        <button
+                            type="button"
+                            onClick={handleConfirmSave}
+                            className="w-full px-2 py-1 text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 rounded-md transition-colors shadow-sm"
+                        >
+                            💾 حفظ التغييرات
+                        </button>
+                    ) : (
+                        <div className="w-full text-center text-[10px] font-bold text-slate-400 py-1 bg-slate-50 rounded-md border border-slate-100 select-none">
+                            🔒 السطر مقفول
+                        </div>
+                    )}
+                    <div className="flex gap-1 w-full">
+                        <button
+                            type="button"
+                            onClick={() => setIsEditable(!isEditable)}
+                            className={`flex-1 py-0.5 text-[10px] font-black rounded-md transition-colors border ${isEditable ? 'text-slate-700 bg-slate-100 border-slate-300 hover:bg-slate-200' : 'text-emerald-700 bg-emerald-50 border-emerald-100 hover:bg-emerald-100'}`}
+                        >
+                            {isEditable ? 'إلغاء' : 'تعديل'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (confirm('واش بصح باغي تمسح هاد السطر؟')) {
+                                    onDelete?.(row.id);
+                                }
+                            }}
+                            className="flex-1 py-0.5 text-[10px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition-colors border border-rose-100"
+                        >
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            </td>
         </tr>
     );
 }

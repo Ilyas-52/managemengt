@@ -609,7 +609,13 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
         setLoading(true);
         try {
             if (fleetFormData.action_type === 'handover') {
-                // 📥 عملية التسليم (خروج السيارة) - إدخال سطر جديد مفتوح
+                // 📸 رفع صور التسليم أولاً وجلب الروابط
+                const uploadedHandoverUrls = await uploadImages(fleetImages);
+
+                // 🧱 تحويل الروابط لـ صيغة JSON النصية المفرزة
+                const handoverMapped = uploadedHandoverUrls.map(url => JSON.stringify({ type: 'handover', url: url }));
+
+                // 📥 إدخال سطر جديد مفتوح مع صور التسليم
                 const { error } = await supabase.from('fleet_operations').insert([{
                     vehicle_name: fleetFormData.vehicle_name,
                     action_type: 'handover',
@@ -619,11 +625,12 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     log_time: fleetFormData.log_time,
                     km_reading: Number(fleetFormData.km_reading),
                     status: 'open',
-                    images_urls: []
+                    images_urls: handoverMapped
                 }]);
                 if (error) throw error;
+
             } else {
-                // 📤 عملية الإرجاع (دخول السيارة) - تحديث السطر المفتوح
+                // 🔍 جلب السطر المفتوح باش نقرأو الصور د التسليم لي تسجلو ف اللول
                 const { data: openRow, error: fetchErr } = await supabase.from('fleet_operations')
                     .select('*')
                     .eq('vehicle_name', fleetFormData.vehicle_name)
@@ -633,21 +640,30 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     .single();
 
                 if (fetchErr || !openRow) {
-                    throw new Error("لا توجد عملية تسليم (خروج) مفتوحة لهذه السيارة لتسجيل إرجاعها.");
+                    throw new Error("لا توجد عملية تسليم مفتوحة لهذه السيارة لتسجيل إرجاعها.");
                 }
 
-                // رفع جميع الصور المحددة دفعة واحدة وجلب روابطها
-                const uploadedUrls = await uploadImages(fleetImages);
-                // حساب المسافة المقطوعة أوتوماتيكياً
+                // 📸 رفع صور الإرجاع دابا
+                const uploadedReturnUrls = await uploadImages(fleetImages);
+
+                // 🧱 تحويل روابط الإرجاع لـ صيغة JSON النصية
+                const returnMapped = uploadedReturnUrls.map(url => JSON.stringify({ type: 'return', url: url }));
+
+                // 🔀 دمج صور التسليم القدام مع صور الإرجاع الجداد ف مصفوفة واحدة
+                const existingImages = openRow.images_urls || [];
+                const finalCombinedImages = [...existingImages, ...returnMapped];
+
+                // 📏 حساب المسافة المقطوعة أوتوماتيكياً
                 const distance = Number(fleetFormData.km_reading) - Number(openRow.km_reading);
 
+                // 📤 تحديث السطر وإغلاقه
                 const { error: updateErr } = await supabase.from('fleet_operations')
                     .update({
                         log_date_return: fleetFormData.log_date,
                         log_time_return: fleetFormData.log_time,
                         km_reading_return: Number(fleetFormData.km_reading),
                         fuel_expenses: Number(fleetFormData.fuel_expenses) || 0,
-                        images_urls: uploadedUrls, // هنا كتحط المصفوفة كاملة د الروابط
+                        images_urls: finalCombinedImages,
                         distance_traveled: distance,
                         status: 'closed'
                     })
@@ -655,6 +671,26 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
 
                 if (updateErr) throw updateErr;
             }
+
+            // 🔗 الفرز الصارم والمطابق بـ الفرنسي 100% مع قاعدة البيانات لمنع التداخل
+            let agencyVal = 'Boudinar';
+            if (fleetFormData.vehicle_name.includes('Clio')) agencyVal = 'Krona';
+            else if (fleetFormData.vehicle_name.includes('Opel')) agencyVal = 'Tazaghine';
+            else if (fleetFormData.vehicle_name.includes('Dacia')) agencyVal = 'Azghar';
+            else if (fleetFormData.vehicle_name.includes('Peugeot')) agencyVal = 'Boudinar';
+
+            // 📥 صياغة الميساج د الإشعار بالعربي والسمية د الطوموبيل واضحة
+            const notifMsg = fleetFormData.action_type === 'handover'
+                ? `📥 تم تسليم سيارة: ${fleetFormData.vehicle_name}`
+                : `📤 تم إرجاع سيارة: ${fleetFormData.vehicle_name}`;
+
+            // 🔔 إرسال الإشعار لجدول سوبابيز بالـ Agency بـ الفرنسي لإشعال الجرس
+            await supabase.from('fleet_operations_notifications').insert([{
+                agency: agencyVal,
+                vehicle_name: fleetFormData.vehicle_name,
+                message: notifMsg,
+                is_read: false
+            }]);
 
             alert('✅ تم تسجيل العملية بنجاح');
             setIsFleetModalOpen(false);
@@ -670,6 +706,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 fuel_expenses: '',
             });
             setFleetImages([]);
+
         } catch (error: any) {
             alert('Error: ' + error.message);
         } finally {
@@ -771,7 +808,13 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-lg border border-slate-200">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-black text-slate-800">📋 طلب تسليم أو إرجاع سيارة</h2>
-                            <button onClick={() => setIsFleetModalOpen(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500">
+                            <button
+                                onClick={() => {
+                                    setIsFleetModalOpen(false);
+                                    setFleetImages([]); // تنظيف الصور عند القفل
+                                }}
+                                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500"
+                            >
                                 <X size={18} />
                             </button>
                         </div>
@@ -779,10 +822,24 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                         <form onSubmit={handleFleetSubmit} className="space-y-5">
                             {/* Toggle Action Type */}
                             <div className="flex bg-slate-100 p-1 rounded-xl">
-                                <button type="button" onClick={() => setFleetFormData({ ...fleetFormData, action_type: 'handover' })} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFleetFormData({ ...fleetFormData, action_type: 'handover' });
+                                        setFleetImages([]); // تنظيف الكاش د الصور ف التبديل
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                >
                                     📥 تسليم (خروج)
                                 </button>
-                                <button type="button" onClick={() => setFleetFormData({ ...fleetFormData, action_type: 'return' })} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setFleetFormData({ ...fleetFormData, action_type: 'return' });
+                                        setFleetImages([]); // تنظيف الكاش د الصور ف التبديل
+                                    }}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                >
                                     📤 إرجاع (دخول)
                                 </button>
                             </div>
@@ -792,8 +849,9 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">السيارة</label>
                                     <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300">
                                         <option value="Peugeot">Peugeot</option>
-                                        <option value="Dacia Logan">Dacia Logan</option>
-                                        <option value="Renault Clio">Renault Clio</option>
+                                        <option value="Dacia">Dacia </option>
+                                        <option value="Clio">Clio</option>
+                                        <option value="Opel">Opel</option>
                                     </select>
                                 </div>
                                 <div>
@@ -812,41 +870,43 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الكيلومتراج (KM)</label>
                                     <input type="number" required value={fleetFormData.km_reading} onChange={(e) => setFleetFormData({ ...fleetFormData, km_reading: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
                                 </div>
-                                {fleetFormData.action_type === 'return' && (
-                                    <>
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">مصاريف الوقود (DH)</label>
-                                            <input type="number" required value={fleetFormData.fuel_expenses} onChange={(e) => setFleetFormData({ ...fleetFormData, fuel_expenses: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
-                                        </div>
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">صور السيارة (اختياري)</label>
-                                            <input
-                                                type="file"
-                                                multiple
-                                                accept="image/*"
-                                                onChange={(e) => {
-                                                    if (e.target.files) {
-                                                        // تحويل الـ FileList لمصفوفة وجمعها مع التصاور القدام
-                                                        const newFiles = Array.from(e.target.files);
-                                                        setFleetImages((prev) => [...prev, ...newFiles]);
-                                                    }
-                                                }}
-                                                className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300"
-                                            />
 
-                                            {/* 💡 توشية د ابن آدم النقي: غانزيدو هاد السطر الصغير تلو الـ Input باش يبان للخدام شحال من تصويرة عزل دابا */}
-                                            {fleetImages.length > 0 && (
-                                                <p className="text-[10px] font-black text-emerald-600 mt-1">
-                                                    📊 تم اختيار {fleetImages.length} صور بنجاح.
-                                                </p>
-                                            )}
-                                        </div>
-                                    </>
+                                {/* ⛽ مصاريف الوقود: تظهر فقط في حالة الإرجاع */}
+                                {fleetFormData.action_type === 'return' && (
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">مصاريف الوقود (DH)</label>
+                                        <input type="number" required value={fleetFormData.fuel_expenses} onChange={(e) => setFleetFormData({ ...fleetFormData, fuel_expenses: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
+                                    </div>
                                 )}
+
+                                {/* 📸 صور السيارة: معزولة دابا وكتطلع ف التسليم والإرجاع بـ زوج ف دقة واحدة */}
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                                        📸 صور السيارة ({fleetFormData.action_type === 'handover' ? 'حالة التسليم' : 'حالة الإرجاع'})
+                                    </label>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            if (e.target.files) {
+                                                const newFiles = Array.from(e.target.files);
+                                                setFleetImages((prev) => [...prev, ...newFiles]);
+                                            }
+                                        }}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-black file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 cursor-pointer"
+                                    />
+
+                                    {fleetImages.length > 0 && (
+                                        <p className="text-[10px] font-black text-emerald-600 mt-1 bg-emerald-50/50 px-2.5 py-1 rounded-lg inline-block border border-emerald-100">
+                                            📊 تم اختيار {fleetImages.length} صور بنجاح وجاهزة للرفع.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
 
                             <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-black mt-2 hover:bg-slate-800 transition-colors disabled:opacity-50">
-                                {loading ? 'جاري الحفظ...' : '✅ تأكيد العملية'}
+                                {loading ? 'جاري الحفظ والرفع...' : '✅ تأكيد العملية'}
                             </button>
                         </form>
                     </div>

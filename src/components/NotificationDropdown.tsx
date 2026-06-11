@@ -10,14 +10,16 @@ export interface Notification {
     is_read: boolean;
     created_at: string;
     agence_name?: string;
+    agency?: string;
+    isFleet?: boolean;
 }
 
 interface Props {
     notifications: Notification[];
     unreadCount: number;
     onMarkAllRead: () => void;
-    onMarkSingleRead: (id: string) => void;
-    onDeleteNotification: (id: string) => void;
+    onMarkSingleRead: (id: string, isFleet?: boolean) => void;
+    onDeleteNotification: (id: string, isFleet?: boolean) => void;
     onNavigate: (n: Notification) => void;
 }
 
@@ -84,44 +86,73 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                     <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-[10px] font-black uppercase">السجل فارغ</div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {notifications.map((n) => (
-                                            <div
-                                                key={n.id}
-                                                onClick={() => {
-                                                    if (!n.is_read) onMarkSingleRead(n.id);
-                                                    onNavigate(n);
-                                                    setIsOpen(false);
-                                                }}
-                                                className={`p-4 rounded-[25px] flex gap-3 cursor-pointer transition-all border ${!n.is_read ? 'bg-emerald-50/40 border-emerald-100' : 'bg-white border-slate-50'}`}
-                                            >
-                                                <div className={`h-10 w-10 rounded-[15px] flex items-center justify-center font-black text-xs shrink-0 border-2 ${!n.is_read ? 'bg-[#0F5A3E] text-white' : 'bg-slate-50 text-slate-300'}`}>
-                                                    {n.staff_name?.[0]?.toUpperCase()}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <span className="text-[10px] font-black text-slate-900 uppercase italic leading-none">{n.staff_name}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[7px] text-slate-400 font-bold bg-slate-50 px-1.5 py-0.5 rounded-md">
-                                                                {new Date(n.created_at).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onDeleteNotification(n.id);
-                                                                }}
-                                                                className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded-md hover:bg-rose-50 flex items-center justify-center shrink-0"
-                                                                title="حذف التنبيه"
-                                                            >
-                                                                <X size={12} />
-                                                            </button>
-                                                        </div>
+                                        {notifications.map((n) => {
+                                            // ⏱️ تفكيك دقيق للتاريخ والوقت لتفادي مشاكل الماركا المقلوبة
+                                            const dateObj = new Date(n.created_at);
+                                            const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+                                            const formattedTime = dateObj.toTimeString().substring(0, 5); // HH:MM
+
+                                            return (
+                                                <div
+                                                    key={`${n.id}-${n.isFleet ? 'fleet' : 'reg'}`}
+                                                    onClick={() => {
+                                                        // قراءة الإشعار حسب نوعه (أسطول أو عادي) لمنع التداخل
+                                                        if (!n.is_read) onMarkSingleRead(n.id, n.isFleet);
+                                                        onNavigate(n);
+                                                        setIsOpen(false);
+                                                    }}
+                                                    className={`p-4 rounded-[25px] flex gap-3 cursor-pointer transition-all border mb-2 ${!n.is_read ? 'bg-emerald-50/50 border-emerald-100' : 'bg-white border-slate-100'}`}
+                                                    dir="rtl"
+                                                >
+                                                    {/* الأيقونة أو الحرف الأول د المشغل */}
+                                                    <div className={`h-10 w-10 rounded-[15px] flex items-center justify-center font-black text-xs shrink-0 border-2 ${!n.is_read ? 'bg-[#0F5A3E] text-white border-[#0F5A3E]' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                                                        {n.isFleet ? '🏎️' : (n.staff_name?.[0]?.toUpperCase() || '🔔')}
                                                     </div>
-                                                    <p className={`text-[11px] font-bold italic tracking-tighter leading-snug ${!n.is_read ? 'text-slate-800' : 'text-slate-400'}`}>
-                                                        {n.message}
-                                                    </p>
+
+                                                    <div className="flex-1 min-w-0 text-right">
+                                                        <div className="flex justify-between items-center mb-1.5 gap-2">
+                                                            {/* التسمية الفوقانية د الجهة */}
+                                                            {/* التسمية الفوقانية د الجهة مترجمة للعربي للشوفات النقية */}
+                                                            <span className="text-[10px] font-black text-slate-500 uppercase italic leading-none shrink-0">
+                                                                {n.isFleet ? (
+                                                                    n.agency === 'Krona' ? '🏎️ أسطول كرونة' :
+                                                                        n.agency === 'Tazaghine' ? '🏎️ أسطول تازاغين' :
+                                                                            n.agency === 'Azghar' ? '🏎️ أسطول أزغار' :
+                                                                                '🏎️ أسطول بودينار'
+                                                                ) : n.staff_name}
+                                                            </span>
+
+                                                            {/* 📅 البادج د التاريخ والوقت غلااااد وبألوان غامقة واضحة */}
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <span className="font-black text-slate-950 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] leading-none">
+                                                                    {formattedDate}
+                                                                </span>
+                                                                <span className="font-black text-slate-950 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] leading-none">
+                                                                    {formattedTime}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        // 🗑️ حذف دقيق من الجدول المناسب عبر الـ Hook المحدث
+                                                                        onDeleteNotification(n.id, n.isFleet);
+                                                                    }}
+                                                                    className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded-md hover:bg-rose-50 flex items-center justify-center shrink-0"
+                                                                    title="حذف التنبيه"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 📝 النص د الإشعار: صغار ولكن رجع غلييييظ وباين كثر وعاطي الشوفات */}
+                                                        <p className="text-xs font-black text-slate-950 tracking-tighter leading-snug w-full">
+                                                            {n.message}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
