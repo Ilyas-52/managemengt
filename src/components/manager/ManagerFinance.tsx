@@ -186,7 +186,7 @@ export default function ManagerFinance({
         const printWindow = iframe.contentWindow;
         if (!printWindow) return;
 
-        // 🚀 مسمار الفرز الصارم: كيعزل غي لي مؤرشفين ف السيستم + صنف B فقط
+        // 🚀 الفرز الصارم: مؤرشفين + صنف B فقط
         const targetStudents = filteredStudents.filter(s => {
             const sType = s.license_type || s.licenseType || 'B';
             return s.status === 'archived' && String(sType).trim().toUpperCase() === 'B';
@@ -197,26 +197,22 @@ export default function ManagerFinance({
             const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
             const rest = (s.total_price || 0) - paid;
 
-            // 🎯 مسمار الحقيقة: تشييك أوتوماتيكي مربوط بـ سيسيتيم الامتحانات (isWinner)
-            // غادي نقراو الحالة د التلميذ من الداتا د الامتحان لي واصلة للباج
-            // تأكد باللي examResults واصلة للـ Component عندك ف الـ Props
+            // 🎯 جلب النتيجة من سيستم الامتحانات
             const result = (window as any).examResults?.find((r: any) => r.student_name === name) || {};
             const isTheoryPassed = result.theory_result === 'admis' || result.theory_result_2 === 'admis';
             const isWinner = isTheoryPassed && (result.practical_result === 'admis' || result.practical_result_2 === 'admis');
 
             const resultBadge = isWinner
-                ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح (خدا البيرمي)</span>'
-                : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف منتهي</span>';
+                ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح</span>'
+                : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف</span>';
 
             return `
                 <tr>
-                    <td style="width: 50px; font-weight: 700; text-align: center;">${index + 1}</td>
+                    <td style="width: 40px; font-weight: 700; text-align: center;">${index + 1}</td>
                     <td class="student-name">${name}</td>
                     <td style="text-align: center; color: #475569;">${s.registration_date ? new Date(s.registration_date).toLocaleDateString('fr-FR') : '---'}</td>
                     <td style="text-align: center; font-weight: 700; color: #2563eb;">${s.exam_date || '---'}</td>
-                    
                     <td style="text-align: center; font-size: 13px;">${resultBadge}</td>
-                    
                     <td style="text-align: center; font-weight: 700; color: #0f172a;">${s.total_price} DH</td>
                     <td style="text-align: center; color: #16a34a; font-weight: 700;">${paid} DH</td>
                     <td style="text-align: center; font-weight: 900; color: ${rest === 0 ? '#16a34a' : '#dc2626'}; background-color: ${rest === 0 ? '#f0fdf4' : '#fef2f2'}; font-size: 13px;">
@@ -234,43 +230,63 @@ export default function ManagerFinance({
                 <title>أرشيف الناجحين - صنف (B)</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
-                    @page { size: A4 portrait; margin: 15mm; }
-                    body { font-family: 'Tajawal', sans-serif; direction: rtl; padding: 10px; background: white; color: #1e293b; }
-                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
-                    .header h1 { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
-                    .header p { font-size: 13px; color: #64748b; margin-top: 6px; font-weight: 700; }
+                    
+                    /* 📐 المسمار الصارم للفورمات A4 الميتة لمنع التنقاز العشوائي */
+                    @page { 
+                        size: A4 portrait; 
+                        margin: 10mm 15mm 15mm 15mm; 
+                    }
+                    
+                    * { box-sizing: border-box; }
+                    body { 
+                        font-family: 'Tajawal', sans-serif; 
+                        direction: rtl; 
+                        padding: 0; 
+                        margin: 0; 
+                        background: white; 
+                        color: #1e293b;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    .header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #0f172a; padding-bottom: 12px; }
+                    .header h1 { font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; }
                     .agency-badge { display: inline-block; padding: 4px 14px; background-color: #f1f5f9; color: #334155; border-radius: 8px; font-size: 12px; font-weight: 900; margin-top: 8px; border: 1px solid #cbd5e1; }
                     
-                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                    th, td { border: 2px solid #000; padding: 12px 8px; font-size: 13px; vertical-align: middle; }
-                    th { background-color: #f2f2f2; font-weight: 900; color: #0f172a; text-align: center; }
-                    .student-name { text-align: right; font-weight: 700; padding-right: 12px; color: #0f172a; font-size: 14px; }
+                    /* 📊 ضبط عرض الجدول ومحاصرة السطور لعدم القفز */
+                    table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: auto; }
+                    th, td { border: 1px solid #0f172a; padding: 8px 6px; font-size: 12px; vertical-align: middle; }
+                    th { background-color: #f8fafc; font-weight: 900; color: #0f172a; text-align: center; }
                     
-                    .summary-info { margin-top: 25px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
-                    .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+                    /* 🛡️ منع تقطيع السطور وسط الخلايا */
+                    tr { page-break-inside: avoid; page-break-after: auto; }
+                    
+                    .student-name { text-align: right; font-weight: 700; padding-right: 8px; color: #0f172a; font-size: 13px; }
+                    .summary-info { margin-top: 20px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
+                    .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 5px; background: white; }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>🗂️ أرشيف المترشحين الناجحين - صنف B (السيارات)</h1>
+                    <h1>🗂️ أرشيف المترشحين - صنف B (السيارات)</h1>
                     <div class="agency-badge">${agencyName}</div>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 50px;">#</th>
+                            <th style="width: 40px;">#</th>
                             <th>الاسم الكامل للمترشح</th>
-                            <th>تاريخ التسجيل</th>
-                            <th>تاريخ الامتحان</th>
-                            <th>النتيجة النهائية</th>
-                            <th>الثمن الإجمالي</th>
-                            <th>المبلغ المدفوع</th>
-                            <th>المبلغ المتبقي (الدين)</th>
+                            <th style="width: 85px;">تاريخ التسجيل</th>
+                            <th style="width: 85px;">تاريخ الامتحان</th>
+                            <th style="width: 100px;">النتيجة النهائية</th>
+                            <th style="width: 85px;">الثمن الإجمالي</th>
+                            <th style="width: 85px;">المبلغ المدفوع</th>
+                            <th style="width: 100px;">المبلغ المتبقي</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${rows.length > 0 ? rows : '<tr><td colspan="8" style="padding: 30px; color: #94a3b8; font-style: italic; font-size: 14px; text-align: center;">لا يوجد مترشحون مؤرشفون في صنف السيارات حالياً بذمة هذه الوكالة</td></tr>'}
+                        ${rows.length > 0 ? rows : '<tr><td colspan="8" style="padding: 25px; color: #94a3b8; font-style: italic; font-size: 13px; text-align: center;">لا يوجد مترشحون مؤرشفون في صنف السيارات حالياً بذمة هذه الوكالة</td></tr>'}
                     </tbody>
                 </table>
 
@@ -284,14 +300,13 @@ export default function ManagerFinance({
                 </div>
 
                 <script>
-                    window.onload = () => { setTimeout(() => { window.print(); }, 500); };
+                    window.onload = () => { setTimeout(() => { window.print(); }, 300); };
                 </script>
             </body>
             </html>
         `);
         printWindow.document.close();
     };
-
     return (
         <div className="px-2 lg:px-8 space-y-8 font-black italic uppercase tracking-tighter" dir="rtl">
 

@@ -141,81 +141,62 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
     // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل المؤمنة ضد الـ Crashes
     // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل الموجهة بالمنيو (C, D, E, A)
     // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل مع الـ Console.log الذكي لتتبع العطب
+    // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل بالفورمات الصارمة A4 لمنع تنقاز السطور
     const handlePrintArchiveReport = (licenseClass: string) => {
-        console.log("=== 🚀 بداية عملية تشخيص أرشيف الوزن الثقيل ===");
-        console.log("1. الصنف لي بركتي عليه ومطلوب طباعته هو:", licenseClass);
-        console.log("2. إجمالي التلاميذ لي واصلين للصفحة من السوبابيز (students) هو:", students?.length, students);
-
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
         const printWindow = iframe.contentWindow;
-        if (!printWindow) {
-            console.error("❌ خطأ: السيستم مالقاش الـ printWindow د الـ iframe");
-            return;
-        }
+        if (!printWindow) return;
 
         // الفرز الصارم: كيجيب غي المترشحين لي مؤرشفين + الصنف لي تختار من المنيو
         const targetStudents = students.filter(s => {
             const sType = s.license_type || s.licenseType || 'C';
-            const isArchived = s.status === 'archived';
-            const isMatchingClass = String(sType).trim().toUpperCase() === licenseClass.toUpperCase();
-            return isArchived && isMatchingClass;
+            return s.status === 'archived' && String(sType).trim().toUpperCase() === licenseClass.toUpperCase();
         });
 
-        console.log(`3. عدد التلاميذ المفلترين (المؤرشفين + صنف ${licenseClass}) هو:`, targetStudents.length, targetStudents);
-
         if (targetStudents.length === 0) {
-            console.warn(`⚠️ تنبيه: اللائحة خاوية! ما كاين حتى تلميذ مؤرشف فـ صنف ${licenseClass} ف الداتابيز الحالية.`);
             alert(`🔍 ما كاين حتى تلميذ مؤرشف حالياً فـ صنف (${licenseClass})`);
             return;
         }
 
         try {
             const rows = targetStudents.map((s, index) => {
-                console.log(`🔍 جاري معالجة التلميذ رقم [${index + 1}]:`, s.first_name, s.last_name);
-                
                 const name = `${s.first_name || ''} ${s.last_name || ''}`;
                 const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                 const rest = (Number(s.total_price) || 0) - paid;
                 
                 let isWinner = false;
-                console.log(`   -> الملاحظات د التلميذ (notes) هي:`, s.notes);
-                
                 if (s && s.notes) {
                     try {
                         const examData = parseHeavyExamData(s);
-                        console.log(`   -> تفكيك بيانات الامتحان النظري والتطبيقي:`, examData);
                         const isTheoryPassed = examData.theory_result === 'admis' || examData.theory_result_2 === 'admis';
                         const isPracticalPassed = examData.practical_result === 'admis' || examData.practical_result_2 === 'admis';
                         isWinner = isTheoryPassed && isPracticalPassed;
-                        console.log(`   -> واش ناجح نهائي (isWinner):`, isWinner);
                     } catch (examError) {
-                        console.error(`   ❌ خطأ أثناء تفكيك داتا الامتحان للتلميذ ${name}:`, examError);
+                        // تفادي أي بلكسة بسبب خطأ فردي ف الملاحظات
                     }
                 }
 
                 const resultBadge = isWinner 
-                    ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح (خدا البيرمي)</span>' 
-                    : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف منتهي</span>';
+                    ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح</span>' 
+                    : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف</span>';
 
                 return `
                     <tr>
-                        <td style="width: 50px; font-weight: 700; text-align: center;">${index + 1}</td>
+                        <td style="width: 40px; font-weight: 700; text-align: center;">${index + 1}</td>
                         <td class="student-name">${name}</td>
                         <td style="text-align: center; color: #475569;">${s.registration_date || '---'}</td>
                         <td style="text-align: center; font-weight: 700; color: #2563eb;">${s.exam_date || '---'}</td>
-                        <td style="text-align: center; font-size: 13px;">${resultBadge}</td>
+                        <td style="text-align: center; font-size: 12px;">${resultBadge}</td>
                         <td style="text-align: center; font-weight: 700; color: #0f172a;">${s.total_price || 0} DH</td>
                         <td style="text-align: center; color: #16a34a; font-weight: 700;">${paid} DH</td>
-                        <td style="text-align: center; font-weight: 900; color: ${rest === 0 ? '#16a34a' : '#dc2626'}; background-color: ${rest === 0 ? '#f0fdf4' : '#fef2f2'}; font-size: 13px;">
+                        <td style="text-align: center; font-weight: 900; color: ${rest === 0 ? '#16a34a' : '#dc2626'}; background-color: ${rest === 0 ? '#f0fdf4' : '#fef2f2'}; font-size: 12px;">
                             ${rest === 0 ? 'خالص ✓' : `${rest} DH`}
                         </td>
                     </tr>
                 `;
             }).join('');
-
-            console.log("4. تم بناء الـ HTML Rows بنجاح وراضي للشغل.");
 
             const agencyName = selectedAgency?.name || 'مؤسسة بودينار';
 
@@ -225,48 +206,75 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                     <title>أرشيف الوزن الثقيل - صنف (${licenseClass})</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
-                        @page { size: A4 portrait; margin: 15mm; }
-                        body { font-family: 'Tajawal', sans-serif; direction: rtl; padding: 10px; background: white; color: #1e293b; }
-                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
-                        .header h1 { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
-                        .header p { font-size: 13px; color: #64748b; margin-top: 6px; font-weight: 700; }
+                        
+                        /* 📐 محاصرة قياس الـ A4 ومحاربة الهوامش العشوائية */
+                        @page { 
+                            size: A4 portrait; 
+                            margin: 10mm 15mm 15mm 15mm; 
+                        }
+                        
+                        * { box-sizing: border-box; }
+                        body { 
+                            font-family: 'Tajawal', sans-serif; 
+                            direction: rtl; 
+                            padding: 0; 
+                            margin: 0; 
+                            background: white; 
+                            color: #1e293b;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                        
+                        .header { text-align: center; margin-bottom: 25px; border-bottom: 3px solid #0f172a; padding-bottom: 12px; }
+                        .header h1 { font-size: 20px; font-weight: 900; color: #0f172a; margin: 0; }
                         .agency-badge { display: inline-block; padding: 4px 14px; background-color: #f1f5f9; color: #334155; border-radius: 8px; font-size: 12px; font-weight: 900; margin-top: 8px; border: 1px solid #cbd5e1; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th, td { border: 2px solid #000; padding: 12px 8px; font-size: 13px; vertical-align: middle; }
-                        th { background-color: #f2f2f2; font-weight: 900; color: #0f172a; text-align: center; }
-                        .student-name { text-align: right; font-weight: 700; padding-right: 12px; color: #0f172a; font-size: 14px; }
-                        .summary-info { margin-top: 25px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
-                        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+                        
+                        /* 📊 حصر الجدول لمنع الخروج عن الإطار */
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: auto; }
+                        th, td { border: 1px solid #0f172a; padding: 8px 6px; font-size: 12px; vertical-align: middle; }
+                        th { background-color: #f8fafc; font-weight: 900; color: #0f172a; text-align: center; }
+                        
+                        /* 🛡️ منع تشتيت أو قطع السطور عشوائياً */
+                        tr { page-break-inside: avoid; page-break-after: auto; }
+                        
+                        .student-name { text-align: right; font-weight: 700; padding-right: 8px; color: #0f172a; font-size: 13px; }
+                        .summary-info { margin-top: 20px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
+                        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 5px; background: white; }
                     </style>
                 </head>
                 <body>
                     <div class="header">
                         <h1>🗂️ أرشيف الوزن الثقيل - صنف (${licenseClass})</h1>
-                        
                         <div class="agency-badge">${agencyName}</div>
                     </div>
+
                     <table>
                         <thead>
                             <tr>
-                                <th style="width: 50px;">#</th>
+                                <th style="width: 40px;">#</th>
                                 <th>الاسم الكامل للمترشح</th>
-                                <th>تاريخ التسجيل</th>
-                                <th>تاريخ الامتحان</th>
-                                <th>النتيجة النهائية</th>
-                                <th>الثمن الإجمالي</th>
-                                <th>المبلغ المدفوع</th>
-                                <th>المبلغ المتبقي (الدين)</th>
+                                <th style="width: 85px;">تاريخ التسجيل</th>
+                                <th style="width: 85px;">تاريخ الامتحان</th>
+                                <th style="width: 100px;">النتيجة النهائية</th>
+                                <th style="width: 85px;">الثمن الإجمالي</th>
+                                <th style="width: 85px;">المبلغ المدفوع</th>
+                                <th style="width: 100px;">المبلغ المتبقي</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rows}
                         </tbody>
                     </table>
+
                     <div class="summary-info">
                         <span>إجمالي ملفات الأرشيف (صنف ${licenseClass}): ${targetStudents.length} مترشح</span>
-                        <span>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-MA')}</span>
+                        <span>تاريخ الاستخراج المباشر: ${new Date().toLocaleDateString('ar-MA')}</span>
                     </div>
-                    <div class="footer">نظام إدارة أوتو إيكول بودينار - تقرير أرشيف الوزن الثقيل</div>
+
+                    <div class="footer">
+                        نظام إدارة أوتو إيكول بودينار - تقرير أرشيف الوزن الثقيل
+                    </div>
+
                     <script>
                         window.onload = () => { setTimeout(() => { window.print(); }, 300); };
                     </script>
@@ -274,11 +282,9 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                 </html>
             `);
             printWindow.document.close();
-            console.log("✅ تمت عملية إرسال الملف للطباعة بنجاح دون أي توقف.");
         } catch (globalError) {
-            console.error("❌ خطأ قاتل تسبب فـ بلكسة الـ PDF لداخل الـ Loop:", globalError);
+            console.error("❌ خطأ أثناء توليد الطباعة:", globalError);
         }
-        console.log("=== 🏁 نهاية تقرير التشخيص ===");
     };
 
     // 📊 حساب الحصيلة
