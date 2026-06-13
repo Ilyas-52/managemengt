@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { AlertTriangle, Timer, Wallet, TrendingUp, UserCircle, CheckCircle2, Calendar, FileText } from 'lucide-react';
+import { AlertTriangle, Timer, Wallet, TrendingUp, UserCircle, FolderArchive, CheckCircle2, Calendar, FileText } from 'lucide-react';
 
 import { Student, Agency } from '@/types/dashboard';
 
@@ -24,6 +24,7 @@ export default function ManagerFinance({
     selectedAgency
 }: Props) {
     const [showDoctorModal, setShowDoctorModal] = useState(false);
+    const [showArchiveMenu, setShowArchiveMenu] = useState(false);
 
     const matchDoctor = (dbValue: any, targetDoctor: string) => {
         if (typeof dbValue !== 'string') return false;
@@ -76,16 +77,16 @@ export default function ManagerFinance({
             const isB = !s.license_type || s.license_type === 'B' || s.licenseType === 'B';
             if (!isB) return false;
             return matchDoctor(s.t1_medical_paid, doctorName) ||
-                   matchDoctor(s.t2_medical_paid, doctorName) ||
-                   matchDoctor(s.t3_medical_paid, doctorName) ||
-                   matchDoctor(s.t4_medical_paid, doctorName) ||
-                   matchDoctor(s.t5_medical_paid, doctorName);
+                matchDoctor(s.t2_medical_paid, doctorName) ||
+                matchDoctor(s.t3_medical_paid, doctorName) ||
+                matchDoctor(s.t4_medical_paid, doctorName) ||
+                matchDoctor(s.t5_medical_paid, doctorName);
         });
 
         const rows = matchingStudents.map((s, index) => {
             const name = `${s.first_name} ${s.last_name}`;
             const medicalDate = getMedicalCheckDate(s, doctorName);
-            
+
             return `
                 <tr>
                     <td style="width: 50px; font-weight: 700;">${index + 1}</td>
@@ -175,23 +176,159 @@ export default function ManagerFinance({
         `);
         printWindow.document.close();
     };
+    // 🖨️ دالة توليد وطباعة PDF الأرشيف التفصيلي لأي صنف بيرمي (أوتوماتيك 100%)
+    // 🖨️ دالة توليد تقرير أرشيف خفيف، مفرز ومفهوم 100% لجميع الأصناف
+    // 🖨️ دالة توليد تقرير أرشيف خفيف وصارم بصنف B (السيارات) مع جلب النتيجة من سيسيتيم الامتحانات
+    const handlePrintArchiveReport = () => {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        const printWindow = iframe.contentWindow;
+        if (!printWindow) return;
+
+        // 🚀 مسمار الفرز الصارم: كيعزل غي لي مؤرشفين ف السيستم + صنف B فقط
+        const targetStudents = filteredStudents.filter(s => {
+            const sType = s.license_type || s.licenseType || 'B';
+            return s.status === 'archived' && String(sType).trim().toUpperCase() === 'B';
+        });
+
+        const rows = targetStudents.map((s, index) => {
+            const name = `${s.first_name} ${s.last_name}`;
+            const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
+            const rest = (s.total_price || 0) - paid;
+
+            // 🎯 مسمار الحقيقة: تشييك أوتوماتيكي مربوط بـ سيسيتيم الامتحانات (isWinner)
+            // غادي نقراو الحالة د التلميذ من الداتا د الامتحان لي واصلة للباج
+            // تأكد باللي examResults واصلة للـ Component عندك ف الـ Props
+            const result = (window as any).examResults?.find((r: any) => r.student_name === name) || {};
+            const isTheoryPassed = result.theory_result === 'admis' || result.theory_result_2 === 'admis';
+            const isWinner = isTheoryPassed && (result.practical_result === 'admis' || result.practical_result_2 === 'admis');
+
+            const resultBadge = isWinner
+                ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح (خدا البيرمي)</span>'
+                : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف منتهي</span>';
+
+            return `
+                <tr>
+                    <td style="width: 50px; font-weight: 700; text-align: center;">${index + 1}</td>
+                    <td class="student-name">${name}</td>
+                    <td style="text-align: center; color: #475569;">${s.registration_date ? new Date(s.registration_date).toLocaleDateString('fr-FR') : '---'}</td>
+                    <td style="text-align: center; font-weight: 700; color: #2563eb;">${s.exam_date || '---'}</td>
+                    
+                    <td style="text-align: center; font-size: 13px;">${resultBadge}</td>
+                    
+                    <td style="text-align: center; font-weight: 700; color: #0f172a;">${s.total_price} DH</td>
+                    <td style="text-align: center; color: #16a34a; font-weight: 700;">${paid} DH</td>
+                    <td style="text-align: center; font-weight: 900; color: ${rest === 0 ? '#16a34a' : '#dc2626'}; background-color: ${rest === 0 ? '#f0fdf4' : '#fef2f2'}; font-size: 13px;">
+                        ${rest === 0 ? 'خالص ✓' : `${rest} DH`}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        const agencyName = selectedAgency?.name || 'مؤسسة بودينار';
+
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>أرشيف الناجحين - صنف (B)</title>
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+                    @page { size: A4 portrait; margin: 15mm; }
+                    body { font-family: 'Tajawal', sans-serif; direction: rtl; padding: 10px; background: white; color: #1e293b; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+                    .header h1 { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
+                    .header p { font-size: 13px; color: #64748b; margin-top: 6px; font-weight: 700; }
+                    .agency-badge { display: inline-block; padding: 4px 14px; background-color: #f1f5f9; color: #334155; border-radius: 8px; font-size: 12px; font-weight: 900; margin-top: 8px; border: 1px solid #cbd5e1; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 2px solid #000; padding: 12px 8px; font-size: 13px; vertical-align: middle; }
+                    th { background-color: #f2f2f2; font-weight: 900; color: #0f172a; text-align: center; }
+                    .student-name { text-align: right; font-weight: 700; padding-right: 12px; color: #0f172a; font-size: 14px; }
+                    
+                    .summary-info { margin-top: 25px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
+                    .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🗂️ أرشيف المترشحين الناجحين - صنف B (السيارات)</h1>
+                    <div class="agency-badge">${agencyName}</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>الاسم الكامل للمترشح</th>
+                            <th>تاريخ التسجيل</th>
+                            <th>تاريخ الامتحان</th>
+                            <th>النتيجة النهائية</th>
+                            <th>الثمن الإجمالي</th>
+                            <th>المبلغ المدفوع</th>
+                            <th>المبلغ المتبقي (الدين)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.length > 0 ? rows : '<tr><td colspan="8" style="padding: 30px; color: #94a3b8; font-style: italic; font-size: 14px; text-align: center;">لا يوجد مترشحون مؤرشفون في صنف السيارات حالياً بذمة هذه الوكالة</td></tr>'}
+                    </tbody>
+                </table>
+
+                <div class="summary-info">
+                    <span>إجمالي الملفات المؤرشفة (صنف B): ${targetStudents.length} مترشح</span>
+                    <span>تاريخ الاستخراج المباشر: ${new Date().toLocaleDateString('ar-MA')}</span>
+                </div>
+
+                <div class="footer">
+                    نظام إدارة أوتو إيكول بودينار - تقرير أرشيف صنف B
+                </div>
+
+                <script>
+                    window.onload = () => { setTimeout(() => { window.print(); }, 500); };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     return (
         <div className="px-2 lg:px-8 space-y-8 font-black italic uppercase tracking-tighter" dir="rtl">
 
-            {/* 🔝 Action Header with Print Doctor Report Button */}
+            {/* 🔝 Action Header مدموج فيه بوطون الأرشيف الجديد بـ الفن بلا ما يخسر القديم */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white border-2 border-slate-100 rounded-[25px] p-5 shadow-sm italic not-uppercase text-right">
                 <div>
-                    <h2 className="text-lg text-slate-900 font-black leading-none">إدارة الفحص الطبي (VM)</h2>
-                    <p className="text-[10px] text-slate-400 mt-1 font-bold">طباعة تقارير الفحص الطبي وتتبع أطباء المترشحين (الصنف B)</p>
+                    <h2 className="text-lg text-slate-900 font-black leading-none">إدارة الفحص الطبي (VM) والأرشيف</h2>
+                    <p className="text-[10px] text-slate-400 mt-1 font-bold">طباعة تقارير الفحص الطبي وتتبع أطباء المترشحين واستخراج أرشيف الأصناف</p>
                 </div>
-                <button
-                    onClick={() => setShowDoctorModal(true)}
-                    className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 border-none cursor-pointer"
-                >
-                    <FileText size={16} />
-                    <span>طباعة تقرير الفحص الطبي</span>
-                </button>
+
+                <div className="flex items-center gap-3 relative">
+                    {/* 🗂️ بوطون أرشيف الناجحين الجديد مع القائمة المنسدلة الذكية */}
+                    <div className="relative">
+                        <button
+    type="button"
+    onClick={handlePrintArchiveReport} // 👈 كيعيط للدالة لي مأمنة على صنف B نيشان بلا مشاكل
+    className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-lg transition-all flex items-center gap-2 border-none cursor-pointer"
+>
+    <FolderArchive size={16} />
+    <span>🗂️ استخراج أرشيف صنف B</span>
+</button>
+
+                        {/* 📊 القائمة المنسدلة د الأصناف (كتطلع غي إيلا برك على البوطون) */}
+                       {/* 🗂️ بوطون استخراج أرشيف صنف B مباشر وصافي بلا منيو منسدل */}
+
+                    </div>
+
+                    {/* 🔵 بوطون الفحص الطبي ديالك الأصلي (بقا كيم كان بـ المليلمتر) */}
+                    <button
+                        type="button"
+                        onClick={() => setShowDoctorModal(true)}
+                        className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 border-none cursor-pointer"
+                    >
+                        <FileText size={16} />
+                        <span>طباعة تقرير الفحص الطبي</span>
+                    </button>
+                </div>
             </div>
 
             {/* 🔝 STATS - (بقا كيم كان بـ الضبط) */}

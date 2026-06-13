@@ -77,6 +77,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
     const [students, setStudents] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
+    const [showArchiveMenu, setShowArchiveMenu] = useState(false);
 
     // 📥 1. جلب البيانات من Supabase مع الفلترة حسب الوكالة النشطة
     const fetchStudents = async () => {
@@ -134,6 +135,150 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
         if (!confirm("واش بصح باغي تمسح هاد التسجيل؟")) return;
         const { error } = await supabase.from('truck_students').delete().eq('id', id);
         if (!error) fetchStudents();
+    };
+    // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل حسب الصنف (C, D, E, A)
+   // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل المؤمنة ضد الـ Crashes
+    // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل المؤمنة ضد الـ Crashes
+    // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل الموجهة بالمنيو (C, D, E, A)
+    // 🖨️ دالة توليد وطباعة PDF أرشيف الوزن الثقيل مع الـ Console.log الذكي لتتبع العطب
+    const handlePrintArchiveReport = (licenseClass: string) => {
+        console.log("=== 🚀 بداية عملية تشخيص أرشيف الوزن الثقيل ===");
+        console.log("1. الصنف لي بركتي عليه ومطلوب طباعته هو:", licenseClass);
+        console.log("2. إجمالي التلاميذ لي واصلين للصفحة من السوبابيز (students) هو:", students?.length, students);
+
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        const printWindow = iframe.contentWindow;
+        if (!printWindow) {
+            console.error("❌ خطأ: السيستم مالقاش الـ printWindow د الـ iframe");
+            return;
+        }
+
+        // الفرز الصارم: كيجيب غي المترشحين لي مؤرشفين + الصنف لي تختار من المنيو
+        const targetStudents = students.filter(s => {
+            const sType = s.license_type || s.licenseType || 'C';
+            const isArchived = s.status === 'archived';
+            const isMatchingClass = String(sType).trim().toUpperCase() === licenseClass.toUpperCase();
+            return isArchived && isMatchingClass;
+        });
+
+        console.log(`3. عدد التلاميذ المفلترين (المؤرشفين + صنف ${licenseClass}) هو:`, targetStudents.length, targetStudents);
+
+        if (targetStudents.length === 0) {
+            console.warn(`⚠️ تنبيه: اللائحة خاوية! ما كاين حتى تلميذ مؤرشف فـ صنف ${licenseClass} ف الداتابيز الحالية.`);
+            alert(`🔍 ما كاين حتى تلميذ مؤرشف حالياً فـ صنف (${licenseClass})`);
+            return;
+        }
+
+        try {
+            const rows = targetStudents.map((s, index) => {
+                console.log(`🔍 جاري معالجة التلميذ رقم [${index + 1}]:`, s.first_name, s.last_name);
+                
+                const name = `${s.first_name || ''} ${s.last_name || ''}`;
+                const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
+                const rest = (Number(s.total_price) || 0) - paid;
+                
+                let isWinner = false;
+                console.log(`   -> الملاحظات د التلميذ (notes) هي:`, s.notes);
+                
+                if (s && s.notes) {
+                    try {
+                        const examData = parseHeavyExamData(s);
+                        console.log(`   -> تفكيك بيانات الامتحان النظري والتطبيقي:`, examData);
+                        const isTheoryPassed = examData.theory_result === 'admis' || examData.theory_result_2 === 'admis';
+                        const isPracticalPassed = examData.practical_result === 'admis' || examData.practical_result_2 === 'admis';
+                        isWinner = isTheoryPassed && isPracticalPassed;
+                        console.log(`   -> واش ناجح نهائي (isWinner):`, isWinner);
+                    } catch (examError) {
+                        console.error(`   ❌ خطأ أثناء تفكيك داتا الامتحان للتلميذ ${name}:`, examError);
+                    }
+                }
+
+                const resultBadge = isWinner 
+                    ? '<span style="color: #16a34a; font-weight: 900;">✅ ناجح (خدا البيرمي)</span>' 
+                    : '<span style="color: #ca8a04; font-weight: 900;">🟡 مؤرشف منتهي</span>';
+
+                return `
+                    <tr>
+                        <td style="width: 50px; font-weight: 700; text-align: center;">${index + 1}</td>
+                        <td class="student-name">${name}</td>
+                        <td style="text-align: center; color: #475569;">${s.registration_date || '---'}</td>
+                        <td style="text-align: center; font-weight: 700; color: #2563eb;">${s.exam_date || '---'}</td>
+                        <td style="text-align: center; font-size: 13px;">${resultBadge}</td>
+                        <td style="text-align: center; font-weight: 700; color: #0f172a;">${s.total_price || 0} DH</td>
+                        <td style="text-align: center; color: #16a34a; font-weight: 700;">${paid} DH</td>
+                        <td style="text-align: center; font-weight: 900; color: ${rest === 0 ? '#16a34a' : '#dc2626'}; background-color: ${rest === 0 ? '#f0fdf4' : '#fef2f2'}; font-size: 13px;">
+                            ${rest === 0 ? 'خالص ✓' : `${rest} DH`}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            console.log("4. تم بناء الـ HTML Rows بنجاح وراضي للشغل.");
+
+            const agencyName = selectedAgency?.name || 'مؤسسة بودينار';
+
+            printWindow.document.write(`
+                <html dir="rtl">
+                <head>
+                    <title>أرشيف الوزن الثقيل - صنف (${licenseClass})</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+                        @page { size: A4 portrait; margin: 15mm; }
+                        body { font-family: 'Tajawal', sans-serif; direction: rtl; padding: 10px; background: white; color: #1e293b; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+                        .header h1 { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
+                        .header p { font-size: 13px; color: #64748b; margin-top: 6px; font-weight: 700; }
+                        .agency-badge { display: inline-block; padding: 4px 14px; background-color: #f1f5f9; color: #334155; border-radius: 8px; font-size: 12px; font-weight: 900; margin-top: 8px; border: 1px solid #cbd5e1; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 2px solid #000; padding: 12px 8px; font-size: 13px; vertical-align: middle; }
+                        th { background-color: #f2f2f2; font-weight: 900; color: #0f172a; text-align: center; }
+                        .student-name { text-align: right; font-weight: 700; padding-right: 12px; color: #0f172a; font-size: 14px; }
+                        .summary-info { margin-top: 25px; font-size: 12px; color: #475569; font-weight: 700; display: flex; justify-content: space-between; }
+                        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🗂️ أرشيف الوزن الثقيل - صنف (${licenseClass})</h1>
+                        
+                        <div class="agency-badge">${agencyName}</div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>الاسم الكامل للمترشح</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>تاريخ الامتحان</th>
+                                <th>النتيجة النهائية</th>
+                                <th>الثمن الإجمالي</th>
+                                <th>المبلغ المدفوع</th>
+                                <th>المبلغ المتبقي (الدين)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                    <div class="summary-info">
+                        <span>إجمالي ملفات الأرشيف (صنف ${licenseClass}): ${targetStudents.length} مترشح</span>
+                        <span>تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-MA')}</span>
+                    </div>
+                    <div class="footer">نظام إدارة أوتو إيكول بودينار - تقرير أرشيف الوزن الثقيل</div>
+                    <script>
+                        window.onload = () => { setTimeout(() => { window.print(); }, 300); };
+                    </script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            console.log("✅ تمت عملية إرسال الملف للطباعة بنجاح دون أي توقف.");
+        } catch (globalError) {
+            console.error("❌ خطأ قاتل تسبب فـ بلكسة الـ PDF لداخل الـ Loop:", globalError);
+        }
+        console.log("=== 🏁 نهاية تقرير التشخيص ===");
     };
 
     // 📊 حساب الحصيلة
@@ -369,24 +514,67 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                 <div className="bg-white/90 backdrop-blur-xl border border-slate-200 shadow-xl rounded-[2.5rem] px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
 
                     {/* 1. اللوغو والزر - مجموعين فـ صف واحد فـ الموبيل */}
-                    <div className="flex items-center justify-between w-full md:w-auto gap-3">
+                    {/* 🚛 الهيدر المعدل: جامع اللوغو + بوطون الأرشيف الجديد وبوطون التقرير الأسبوعي فـ صف واحد منظم */}
+                    <div className="flex flex-wrap items-center justify-between w-full md:w-auto gap-3">
                         <div className="flex items-center gap-2">
                             <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white shrink-0">
                                 <Truck size={18} />
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black italic uppercase leading-none">{selectedAgency?.name || 'وكالة'}</span>
-
                             </div>
                         </div>
 
+                        {/* 🌟 تجمع الأزرار: بوطون الأرشيف والتقرير مستفين جنبا إلى جنب */}
+                        {/* 🌟 بوطونات الإدارة الموحدة مع المنيو المنسدل للأصناف الكبيرة */}
+                    <div className="flex items-center gap-2 relative">
+                        {/* 🗂️ بوطون الأرشيف مع القائمة المنسدلة الذكية */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() => setShowArchiveMenu(!showArchiveMenu)}
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-[15px] text-[10px] font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 border-none cursor-pointer"
+                            >
+                                <History size={14} className="text-slate-400" />
+                                <span>🗂️ استخراج أرشيف صنف</span>
+                                <ChevronDown size={12} className={`transition-transform duration-200 ${showArchiveMenu ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {showArchiveMenu && (
+                                <div className="absolute left-0 mt-2 w-52 bg-white border-2 border-slate-900 rounded-2xl shadow-xl z-[200] overflow-hidden text-right animate-in slide-in-from-top-2 duration-150">
+                                    <p className="p-3 text-[8px] font-black text-slate-400 bg-slate-50 border-b border-slate-100 select-none">اختر صنف الوزن الثقيل:</p>
+                                    {[
+                                        { key: 'C', label: '🚛 صنف C (الشاحنات)' },
+                                        { key: 'D', label: '🚌 صنف D (الحافلات)' },
+                                        { key: 'E', label: '🚛 صنف E (الرموك)' },
+                                        { key: 'A', label: '🏍️ صنف A (الدراجات)' }
+                                    ].map(item => (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            onClick={() => {
+                                                handlePrintArchiveReport(item.key); // 👈 دابا غاتخدم بـ الفن وبلا خط أحمر حيت الدالة الفوق واجدة تـقـبـلـها
+                                                setShowArchiveMenu(false);
+                                            }}
+                                            className="w-full text-right px-4 py-3 hover:bg-slate-50 text-xs font-black text-slate-800 transition-colors border-none bg-transparent cursor-pointer block"
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 🟢 بوطون التقرير الأسبوعي الأصلي ديالك (بقا كيم كان بـ المليلمتر) */}
                         <button
+                            type="button"
                             onClick={() => generateWeeklyBilan(students, selectedAgency?.name || 'Boudinar')}
-                            className="bg-[#0F5A3E] hover:bg-emerald-800 text-white px-4 py-2.5 rounded-[15px] text-[10px] font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 border-b-2 border-emerald-900"
+                            className="bg-[#0F5A3E] hover:bg-emerald-800 text-white px-4 py-2.5 rounded-[15px] text-[10px] font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 border-b-2 border-emerald-900 cursor-pointer"
                         >
                             <Calendar size={14} className="text-emerald-300" />
                             <span>التقرير الأسبوعي</span>
                         </button>
+                    </div>
                     </div>
 
                     {/* 2. البحث - كاياخد العرض كامل فـ الموبيل */}
