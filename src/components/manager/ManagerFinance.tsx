@@ -307,6 +307,7 @@ export default function ManagerFinance({
         `);
         printWindow.document.close();
     };
+    const activeStudentsOnly = filteredStudents.filter(s => s.status !== 'archived');
     return (
         <div className="px-2 lg:px-8 space-y-8 font-black italic uppercase tracking-tighter" dir="rtl">
 
@@ -379,7 +380,7 @@ export default function ManagerFinance({
 
             {/* 📱 نسخة التليفون: Cards (معدلة بـ تواريخ الدفعات) */}
             <div className="grid grid-cols-1 gap-6 sm:hidden" dir="rtl">
-                {filteredStudents.map(s => {
+                {activeStudentsOnly.map(s => {
                     const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
                     const rest = (s.total_price || 0) - paid;
                     const hasExam = s.exam_date && s.exam_date !== '';
@@ -501,7 +502,7 @@ export default function ManagerFinance({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                            {filteredStudents.map(s => {
+                            {activeStudentsOnly.map(s => {
                                 const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
                                 const rest = (s.total_price || 0) - paid;
                                 const needsWarning = s.exam_date && rest > 0;

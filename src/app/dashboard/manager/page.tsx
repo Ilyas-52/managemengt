@@ -930,7 +930,7 @@ function ManagerFleetOperations() {
     const fetchRecords = async (filter: string) => {
         setLoading(true);
 
-        // غانـاخدو غي الكلمة الأولى د الطوموبيل (مثلاً Peugeot ف بلاصة Peugeot 208) باش نطابقو مع التيرمينالز
+        // غانـاخدو غي الكلمة الأولى د الطوموبيل (مثلاً Peugeot أو Mercedes) باش نطابقو مع الداتابيز
         const cleanFilter = filter.split(' ')[0].trim();
 
         const { data } = await supabase
@@ -961,8 +961,8 @@ function ManagerFleetOperations() {
             alert('Error: ' + error.message);
         }
     };
-    // 🗑️ دالة حذف عملية من الأسطول بالكامل
-    // 🗑️ دالة حذف عملية من الأسطول مأمنة 100% بلا خط أحمر
+
+    // 🗑️ دالة حذف عملية من الأسطول بالكامل مأمنة 100% بلا خط أحمر
     const handleDeleteFleet = async (id: string) => {
         try {
             const { error } = await supabase
@@ -973,8 +973,6 @@ function ManagerFleetOperations() {
             if (error) throw error;
 
             alert('✅ تم حذف العملية بنجاح');
-
-            // ريفريش ذكي: إيلا كانت الدالة مبرمجة غاتخدم، إيلا لا غاتريفريشي الباج كاملة ف البلاصة
             window.location.reload();
 
         } catch (error: any) {
@@ -982,13 +980,9 @@ function ManagerFleetOperations() {
         }
     };
 
-    // 📝 دالة فتح التعديل (كتفتح المودال أو الفورم للتعديل)
     const handleEditFleet = (row: any) => {
-        // إيلا عندك مودال د التعديل كتحط السطر هنا، مثلاً:
-        // setSelectedFleetRow(row);
-        // setIsEditModalOpen(true);
         console.log("📝 Editing row:", row);
-        alert('خاصية التعديل السريع قيد التطوير أو يمكنك ربطها بـ Modal التعديل الخاص بك.');
+        alert('خاصية التعديل السريع قيد التطوير.');
     };
 
     const getDriverBadge = () => {
@@ -996,6 +990,8 @@ function ManagerFleetOperations() {
         if (vehicleFilter === 'Peugeot 208') return "👤 السائق: حمزة • وكالة بودينار";
         if (vehicleFilter === 'Opel Corsa') return "👤    السائق: بلقاسمي  • وكالة تازغين";
         if (vehicleFilter === 'Dacia Logan') return "👤   السائق: إسماعيل  • وكالة ازغار";
+        // 🌟 مسمار البادج: ضبط السائق والوكالة لـ Mercedes 190 تابعة لـ بودينار
+        if (vehicleFilter === 'Mercedes 190') return "👤 السائق: يونس (المدير)   ";
         return "🗂️ سيارة الأسطول الحالية";
     };
 
@@ -1003,15 +999,15 @@ function ManagerFleetOperations() {
         <div className="bg-white p-6 md:p-8 rounded-[35px] shadow-sm border border-slate-200 w-full" dir="rtl">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-100 pb-6">
-                <div>
-                    <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
+                <div className="text-right">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-2 flex items-center gap-2 justify-start">
                         <Car size={22} className="text-slate-700" />   طلبات تسليم وارجاع السيارات
                     </h2>
                     <span className="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 inline-block">
                         {getDriverBadge()}
                     </span>
                 </div>
-                <div className="w-full md:w-56">
+                <div className="w-full md:w-56 text-right">
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">تصفية حسب السيارة</label>
                     <select
                         value={vehicleFilter}
@@ -1022,6 +1018,8 @@ function ManagerFleetOperations() {
                         <option value="Peugeot 208">Peugeot 208</option>
                         <option value="Opel Corsa">Opel Corsa</option>
                         <option value="Dacia Logan">Dacia Logan</option>
+                        {/* 🌟 مسمار الفلتر: إضافة خيار الـ Mercedes 190 ف الـ Select د المانجر */}
+                        <option value="Mercedes 190">Mercedes 190 </option>
                     </select>
                 </div>
             </div>
@@ -1039,7 +1037,6 @@ function ManagerFleetOperations() {
                             <th className="p-3">📤 إرجاع (KM / تاريخ)</th>
                             <th className="p-3">مسافة</th>
                             <th className="p-3">البنزين</th>
-                            {/* 📸 الفرز د الخانات د الصور */}
                             <th className="p-3 text-center">📸 صور التسليم</th>
                             <th className="p-3 text-center">📸 صور الإرجاع</th>
                             <th className="p-3">السرعة القصوى</th>

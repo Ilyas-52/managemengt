@@ -604,7 +604,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
     };
 
     // 🚀 الدالة الكبيرة لإرسال وحفظ بيانات أسطول السيارات
-    const handleFleetSubmit = async (e: React.FormEvent) => {
+   const handleFleetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
@@ -656,7 +656,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                 // 📏 حساب المسافة المقطوعة أوتوماتيكياً
                 const distance = Number(fleetFormData.km_reading) - Number(openRow.km_reading);
 
-                // 📤 تحديث السطر وإغلاقه
+                // 📥 تحديث السطر وإغلاقه
                 const { error: updateErr } = await supabase.from('fleet_operations')
                     .update({
                         log_date_return: fleetFormData.log_date,
@@ -678,6 +678,8 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
             else if (fleetFormData.vehicle_name.includes('Opel')) agencyVal = 'Tazaghine';
             else if (fleetFormData.vehicle_name.includes('Dacia')) agencyVal = 'Azghar';
             else if (fleetFormData.vehicle_name.includes('Peugeot')) agencyVal = 'Boudinar';
+            // 🌟 مسمار الحقيقة: توجيه إشعارات الـ Mercedes 190 أوتوماتيكياً لوكالتها الأصلية (عدلها لـ Boudinar أو أي وكالة بغيتي)
+            else if (fleetFormData.vehicle_name.includes('Mercedes 190')) agencyVal = 'Boudinar'; 
 
             // 📥 صياغة الميساج د الإشعار بالعربي والسمية د الطوموبيل واضحة
             const notifMsg = fleetFormData.action_type === 'handover'
@@ -695,10 +697,10 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
             alert('✅ تم تسجيل العملية بنجاح');
             setIsFleetModalOpen(false);
 
-            // إعادة تعيين الفورم إلى الحالة الافتراضية
+            // إعادة تعيين الفورم إلى الحالة الافتراضية مع دعم الأسطول الجديد
             setFleetFormData({
                 action_type: 'handover',
-                vehicle_name: 'Peugeot',
+                vehicle_name: 'Peugeot', // 👈 كيبقى الديفو لي بغيتي، والـ Mercedes دابا راها فالقائمة لداخل
                 counterparty_name: '',
                 log_date: new Date().toISOString().split('T')[0],
                 log_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
@@ -852,6 +854,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                                         <option value="Dacia">Dacia </option>
                                         <option value="Clio">Clio</option>
                                         <option value="Opel">Opel</option>
+                                        <option value="Mercedes 190">Mercedes 190 </option>
                                     </select>
                                 </div>
                                 <div>

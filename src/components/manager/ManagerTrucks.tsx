@@ -353,6 +353,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
             }
             return acc;
         }, { scheduled: 0, passed: 0, failed: 0 });
+  
 
         return (
             <div className="w-full max-w-[1600px] mx-auto px-4 md:px-6 lg:px-4 space-y-10 pb-40 font-black italic text-right uppercase tracking-tighter overflow-x-hidden" dir="rtl">
@@ -411,7 +412,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
 
                 {/* ── شبكة النتائج المفلترة (Twin of ManagerExams.tsx) ── */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-1000">
-                    {filteredExamStudents.map(s => {
+                    {filteredStudents.map(s => {
                         const examData = parseHeavyExamData(s);
 
                         const isTheory1Failed = examData.theory_result === 'echoue';
@@ -511,6 +512,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
             </div>
         );
     }
+    const activeStudentsOnly = filteredStudents.filter(s => s.status !== 'archived');
 
     return (
         /* ✅ التعديل: نقصنا الـ Padding فـ الشاشات الكبيرة وزدنا max-w باش يبقى الوسط */
@@ -622,7 +624,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
 
             {/* 📱 نسخة التليفون: Cards ناضيين */}
             <div className="grid grid-cols-1 gap-4 sm:hidden animate-in slide-in-from-bottom-4 duration-1000">
-                {filteredStudents.map(s => {
+                {activeStudentsOnly.map(s => {
                     const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                     const rest = (s.total_price || 0) - paid;
 
@@ -795,7 +797,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                         <tbody className="divide-y divide-slate-100">
                             {fetching ? (
                                 <tr><td colSpan={8} className="p-20 text-center animate-pulse font-black text-slate-300">جاري جلب البيانات...</td></tr>
-                            ) : filteredStudents.map(s => {
+                            ) : activeStudentsOnly.map(s => {
                                 const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                                 const rest = (s.total_price || 0) - paid;
                                 return (

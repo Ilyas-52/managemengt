@@ -959,6 +959,8 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
       else if (fleetFormData.vehicle_name.includes('Opel')) agencyVal = 'Tazaghine';
       else if (fleetFormData.vehicle_name.includes('Dacia')) agencyVal = 'Azghar';
       else if (fleetFormData.vehicle_name.includes('Peugeot')) agencyVal = 'Boudinar';
+      // 🌟 مسمار الهيبة: ربط سيارة Mercedes 190 بـ مؤسسة بودينار نيشان ف الجرس والإشعارات
+      else if (fleetFormData.vehicle_name.includes('Mercedes 190')) agencyVal = 'Boudinar';
 
       // 📥 صياغة الميساج د الإشعار بالعربي والسمية د الطوموبيل واضحة
       const notifMsg = fleetFormData.action_type === 'handover'
@@ -1205,6 +1207,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
                     <option value="Dacia">Dacia</option>
                     <option value="Clio">Clio</option>
                     <option value="Opel">Opel</option>
+                    <option value="Mercedes 190">Mercedes 190</option>
                   </select>
                 </div>
                 <div>
