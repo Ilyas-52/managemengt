@@ -98,27 +98,27 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
 
-                    /* 📐 محاصرة قياس الصفحة ومحاربة الهوامش العشوائية ف الطباعة */
+                    /* 📐 محاصرة قياس الصفحة ومنع الهوامش الكبيرة في الموبايل */
                     @page {
-                        size: auto;
-                        margin: 5mm 10mm 5mm 10mm;
+                        size: A4 portrait;
+                        margin: 8mm 10mm 8mm 10mm;
                     }
-                    body { font-family: 'Tajawal', sans-serif; padding: 20px; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                    .header { text-align: center; border: 4px solid #000; padding: 15px; margin-bottom: 20px; }
-                    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 30px; }
-                    th, td { border: 2px solid #000; padding: 10px; text-align: center; font-weight: 700; }
+                    body { font-family: 'Tajawal', sans-serif; padding: 0; margin: 0; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .header { text-align: center; border: 4px solid #000; padding: 12px; margin-bottom: 15px; }
+                    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px; }
+                    th, td { border: 2px solid #000; padding: 8px 5px; text-align: center; font-weight: 700; font-size: 13px; }
                     th { background: #f2f2f2 !important; -webkit-print-color-adjust: exact !important; }
-                    .day-cell { background: #f9f9f9 !important; width: 80px; font-weight: 900; }
+                    .day-cell { background: #f9f9f9 !important; width: 75px; font-weight: 900; }
                     .absent-row { 
                         background-color: #ff0000 !important; 
                         color: #ffffff !important; 
-                        font-size: 16px !important; 
+                        font-size: 14px !important; 
                         font-weight: 900 !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     
-                    /* 🎨 ستايل الإطار الأول: مأمن ضد الانقسام والتنقاز */
+                    /* 🎨 ستايل الإطار الأول */
                     .notice-box {
                         background-color: #b8dc44 !important;
                         border: 3px solid #a3c437;
@@ -127,7 +127,7 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         margin-top: 15px;
                         text-align: center;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                        page-break-inside: avoid; /* 🔒 مسمار منع التقسيم */
+                        page-break-inside: avoid;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
@@ -138,16 +138,29 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         line-height: 1.5;
                         margin: 0 0 8px 0;
                     }
-                        * 🌟 ستايل الإطار الثاني: مستقل ومجموع ومأمن ضد التقسيم للباج 2 */
+                    .phone-container {
+                        display: inline-block;
+                        border-bottom: 4px solid #dc2626;
+                        padding-bottom: 1px;
+                        margin-bottom: 3px;
+                    }
+                    .phone-number {
+                        color: #dc2626;
+                        font-size: 22px;
+                        font-weight: 900;
+                        letter-spacing: 1px;
+                    }
+                    
+                    /* 🌟 تصحيح مسمار التعليق: دابا الكادر الثاني غايبان ناضي */
                     .info-box {
                         background-color: #b8dc44 !important;
                         border: 3px solid #a3c437;
                         border-radius: 20px;
                         padding: 12px 15px;
-                        margin-top: 10px;
+                        margin-top: 12px;
                         text-align: center;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                        page-break-inside: avoid; /* 🔒 مسمار منع التقسيم */
+                        page-break-inside: avoid; /* يمنع نزول الكادر للصفحة الثانية */
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
@@ -158,45 +171,58 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         line-height: 1.5;
                         margin: 0;
                     }
-                    .phone-container {
-                        display: inline-block;
-                        border-bottom: 4px solid #dc2626;
-                        padding-bottom: 2px;
-                        margin-bottom: 5px;
-                    }
-                    .phone-number {
-                        color: #dc2626;
-                        font-size: 26px;
-                        font-weight: 900;
-                        letter-spacing: 1px;
-                    }
                 </style>
             </head>
             <body>
+
                 <div class="header">
+
                     <h1>مـؤسـسـة ${selectedAgency?.name || 'بـوديـنـار'}</h1>
+
                     <div style="font-size: 14px; font-weight: 900;"> البرنامج الأسبوعي للحصص مع الأستاذ: ${instructorName}</div>
+
                 </div>
+
                 <table>
+
                     <thead><tr><th class="day-cell">اليوم</th><th>الصباح</th><th>المساء</th></tr></thead>
+
                     <tbody>${rows}</tbody>
+
                 </table>
-                
+
                
+
+               
+
                 <div class="notice-box">
+
                     <p class="notice-text">
+
                          لأي استفسار أو طرح أي تساؤل،المرجو إرسال رسالة صوتية أو كتابية إلى صاحب المؤسسة على الرقم:
+
                     </p>
+
                     <div class="phone-container">
+
                         <span class="phone-number">0688774026</span>
+
                     </div>
+
                 </div>
+
 <div class="info-box">
+
                     <p class="info-text">
+
                          استعمال الزمن ينظم الحصص التطبيقية (السياقة) فقط. اما الحصص النظرية(الكود) فهي متاحة للجميع في اي وقت.
+
                     </p>
+
                 </div>
+
                 <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); };</script>
+
             </body>
             </html>
         `);
