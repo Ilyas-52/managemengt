@@ -131,6 +131,24 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         line-height: 1.6;
                         margin: 0 0 12px 0;
                     }
+                        .info-box {
+                        background-color: #b8dc44 !important;
+                        border: 3px solid #a3c437;
+                        border-radius: 25px;
+                        padding: 18px 20px;
+                        margin-top: 15px; /* تيساع بين الكوادر */
+                        text-align: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .info-text {
+                        color: #0f172a;
+                        font-size: 15px;
+                        font-weight: 900;
+                        line-height: 1.6;
+                        margin: 0;
+                    }
                     .phone-container {
                         display: inline-block;
                         border-bottom: 4px solid #dc2626;
@@ -164,7 +182,11 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         <span class="phone-number">0688774026</span>
                     </div>
                 </div>
-
+<div class="info-box">
+                    <p class="info-text">
+                         استعمال الزمن ينظم الحصص التطبيقية (السياقة) فقط. اما الحصص النظرية(الكود) فهي متاحة للجميع في اي وقت.
+                    </p>
+                </div>
                 <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); };</script>
             </body>
             </html>
