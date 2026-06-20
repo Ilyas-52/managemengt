@@ -97,6 +97,12 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
             <head>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+
+                    /* 📐 محاصرة قياس الصفحة ومحاربة الهوامش العشوائية ف الطباعة */
+                    @page {
+                        size: auto;
+                        margin: 5mm 10mm 5mm 10mm;
+                    }
                     body { font-family: 'Tajawal', sans-serif; padding: 20px; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .header { text-align: center; border: 4px solid #000; padding: 15px; margin-bottom: 20px; }
                     table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 30px; }
@@ -112,41 +118,44 @@ export default function ManagerPlanning({ hamzaSchedule, days, selectedAgency, i
                         print-color-adjust: exact !important;
                     }
                     
-                    /* 🎨 ستايل الإطار الأخضر الفاتح والتنبيه النقي كالحقيقة */
+                    /* 🎨 ستايل الإطار الأول: مأمن ضد الانقسام والتنقاز */
                     .notice-box {
                         background-color: #b8dc44 !important;
                         border: 3px solid #a3c437;
-                        border-radius: 25px;
-                        padding: 20px;
-                        margin-top: 30px;
+                        border-radius: 20px;
+                        padding: 12px 15px;
+                        margin-top: 15px;
                         text-align: center;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        page-break-inside: avoid; /* 🔒 مسمار منع التقسيم */
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     .notice-text {
                         color: #0f172a;
-                        font-size: 16px;
+                        font-size: 14px;
                         font-weight: 900;
-                        line-height: 1.6;
-                        margin: 0 0 12px 0;
+                        line-height: 1.5;
+                        margin: 0 0 8px 0;
                     }
-                        .info-box {
+                        * 🌟 ستايل الإطار الثاني: مستقل ومجموع ومأمن ضد التقسيم للباج 2 */
+                    .info-box {
                         background-color: #b8dc44 !important;
                         border: 3px solid #a3c437;
-                        border-radius: 25px;
-                        padding: 18px 20px;
-                        margin-top: 15px; /* تيساع بين الكوادر */
+                        border-radius: 20px;
+                        padding: 12px 15px;
+                        margin-top: 10px;
                         text-align: center;
                         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        page-break-inside: avoid; /* 🔒 مسمار منع التقسيم */
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
                     .info-text {
                         color: #0f172a;
-                        font-size: 15px;
+                        font-size: 14px;
                         font-weight: 900;
-                        line-height: 1.6;
+                        line-height: 1.5;
                         margin: 0;
                     }
                     .phone-container {
