@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { UserX, Trash2, Plus, Scale, Printer } from 'lucide-react';
+import { UserX, Trash2, Plus, Scale, Printer, Save, Edit3, X } from 'lucide-react';
 
 const STAFF_LIST = [
     'حمزة متموري',
@@ -24,6 +24,9 @@ export default function ManagerPenalties() {
     const [selectedStaff, setSelectedStaff] = useState(STAFF_LIST[0]);
     const [errorDescription, setErrorDescription] = useState('');
 
+    // 🔒 مسمار ساروت التعديل: كيشد الـ ID د العقوبة لي كيتعدل دابا لفوق ف الـ Form
+    const [editingId, setEditingId] = useState<string | null>(null);
+
     const fetchPenalties = async () => {
         try {
             const { data, error } = await supabase
@@ -38,37 +41,77 @@ export default function ManagerPenalties() {
         fetchPenalties();
     }, []);
 
-    const handleAddPenalty = async (e: React.FormEvent) => {
+    // 🚀 دالة الحفظ الذكية: كتشوف واش تسجيل جديد أولا تحديث عقوبة قديمة طلعت لفوق
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!errorDescription.trim()) return;
 
         setLoading(true);
         try {
-            const { error } = await supabase.from('staff_penalties').insert([{
-                staff_name: selectedStaff,
-                error_type: errorDescription,
-                penalty_value: 'خصم نصف يوم'
-            }]);
+            if (editingId) {
+                // 📝 حالة التحديث (Update):
+                const { error } = await supabase
+                    .from('staff_penalties')
+                    .update({
+                        staff_name: selectedStaff,
+                        error_type: errorDescription
+                    })
+                    .eq('id', editingId);
 
-            if (!error) {
-                setErrorDescription('');
-                alert("✅ تم تسجيل العقوبة بنجاح (خصم نصف يوم)");
-                await fetchPenalties();
+                if (!error) {
+                    alert("⚙️ تم تحديث العقوبة بنجاح  !");
+                    setEditingId(null); // ريستارت لوضع الإدخال
+                    setErrorDescription('');
+                    await fetchPenalties();
+                } else {
+                    alert("⚠️ خطأ في التحديث: " + error.message);
+                }
             } else {
-                alert("⚠️ خطأ في الحفظ: " + error.message);
+                // ➕ حالة الإدخال الجديد (Insert):
+                const { error } = await supabase.from('staff_penalties').insert([{
+                    staff_name: selectedStaff,
+                    error_type: errorDescription,
+                    penalty_value: 'خصم نصف يوم'
+                }]);
+
+                if (!error) {
+                    setErrorDescription('');
+                    alert("✅ تم تسجيل العقوبة بنجاح (خصم نصف يوم)");
+                    await fetchPenalties();
+                } else {
+                    alert("⚠️ خطأ في الحفظ: " + error.message);
+                }
             }
         } catch (err: any) { alert("وقع مشكل: " + err.message); }
         setLoading(false);
     };
 
-    const handleDeletePenalty = async (id: string) => {
-        const { error } = await supabase.from('staff_penalties').delete().eq('id', id);
-        if (!error) fetchPenalties();
+    // 🚀 مسمار سحب الداتا وإرسالها لفوق ف الـ inputs عند الضغط على تعديل
+    const handleLoadToForm = (penalty: any) => {
+        setEditingId(penalty.id);
+        setSelectedStaff(penalty.staff_name);
+        setErrorDescription(penalty.error_type);
+        // التمرير الأوتوماتيكي للفوق باش المانجر يشوف الـ inputs بالزربة ف الموبايل
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 🚀 مسمار الـ PDF العالمي والمضمون للتلفونات (مقاس A4 مفرز بـ الحرف)
+    const handleDeletePenalty = async (id: string) => {
+        const confirmDelete = window.confirm("🚨 واش بصح باغي تمسح هاد المخالفة نهائياً؟");
+        if (!confirmDelete) return;
+        
+        const { error } = await supabase.from('staff_penalties').delete().eq('id', id);
+        if (!error) {
+            alert("🗑️ تم الحذف بنجاح!");
+            if (editingId === id) { // إيلا تمسحات وهي كتعمر كيدير ريستارت لفوق
+                setEditingId(null);
+                setErrorDescription('');
+            }
+            fetchPenalties();
+        }
+    };
+
+    // 🚀 مسمار الـ PDF العالمي والمضمون للتلفونات
     const handlePrintPDF = () => {
-        // تصفية العقوبات باش نطبعو غي ديال السيد لي عازلو المانجر دابا الفوق
         const filtered = penalties.filter(p => p.staff_name === selectedStaff);
 
         if (filtered.length === 0) {
@@ -87,7 +130,6 @@ export default function ManagerPenalties() {
             `;
         }).join('');
 
-        // كرينا Iframe مخفي لضمان توافق الطباعة على الأندرويد والآيفون دقة واحدة
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
@@ -112,8 +154,6 @@ export default function ManagerPenalties() {
                 </style>
             </head>
             <body>
-                
-                
                 <div class="info-box">
                     <strong>الاسم الكامل :</strong> <span style="font-size: 18px; color: #ef4444;">${selectedStaff}</span>
                     <br/>
@@ -131,7 +171,7 @@ export default function ManagerPenalties() {
                     <tbody>${rows}</tbody>
                 </table>
 
-                <div class="footer">تم استخراج هذا التقرير  في: ${new Date().toLocaleString('ar-MA')}</div>
+                <div class="footer">تم استخراج هذا التقرير في: ${new Date().toLocaleString('ar-MA')}</div>
                 <script>
                     window.onload = () => { 
                         setTimeout(() => { window.print(); }, 500); 
@@ -143,13 +183,11 @@ export default function ManagerPenalties() {
 
         printWindow.document.close();
 
-        // مسح الـ Iframe بعد الطبع للحفاظ على خفة المتصفح
         setTimeout(() => {
             if (document.body.contains(iframe)) document.body.removeChild(iframe);
         }, 5000);
     };
 
-    // تصفية الداتا الحالية للعرض على الشاشة بناء على اختيار المدير
     const filteredPenaltiesOnScreen = penalties.filter(p => p.staff_name === selectedStaff);
 
     return (
@@ -161,7 +199,6 @@ export default function ManagerPenalties() {
                     <Scale size={20} className="text-red-500 animate-pulse" /> نظام ضبط عقوبات الموظفين
                 </h2>
 
-                {/* بوطون الطباعة المبلاند مقاس A4 لجميع التلفونات */}
                 <button
                     onClick={handlePrintPDF}
                     className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow-lg transition-all active:scale-95 border-none cursor-pointer"
@@ -172,13 +209,23 @@ export default function ManagerPenalties() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-                {/* ── الجهة 1: تسجيل عقوبة جديدة ── */}
-                <form onSubmit={handleAddPenalty} className="bg-white p-6 rounded-[30px] border border-slate-100 shadow-sm space-y-4">
-                    <header className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-red-500 text-white rounded-lg flex items-center justify-center rotate-3 shadow-md">
-                            <UserX size={16} />
+                {/* ── الجهة 1: الـ Form الذكي (تسجيل جديد أو تعديل طالع من التابلو) ── */}
+                <form onSubmit={handleFormSubmit} className={`bg-white p-6 rounded-[30px] border shadow-sm space-y-4 transition-all duration-300 ${editingId ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-100'}`}>
+                    <header className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 text-white rounded-lg flex items-center justify-center rotate-3 shadow-md ${editingId ? 'bg-amber-500' : 'bg-red-500'}`}>
+                                <UserX size={16} />
+                            </div>
+                            <h4 className="font-black text-xs text-slate-900">
+                                {editingId ? 'تعديل وتحديث المخالفة' : 'تسجيل مخالفة جديدة'}
+                            </h4>
                         </div>
-                        <h4 className="font-black text-xs text-slate-900">تسجيل مخالفة جديدة</h4>
+                        {/* بوطون إلغاء التعديل لإرجاع الفورم للوضع الطبيعي بأمان */}
+                        {editingId && (
+                            <button type="button" onClick={() => { setEditingId(null); setErrorDescription(''); }} className="text-slate-400 hover:text-rose-500 p-1 bg-slate-50 rounded-md border-none cursor-pointer">
+                                <X size={14} />
+                            </button>
+                        )}
                     </header>
 
                     <div className="space-y-1">
@@ -216,20 +263,23 @@ export default function ManagerPenalties() {
                         />
                     </div>
 
+                    {/* البوطون الديناميكي كيتغير شكله ولونه أوتوماتيك ف وضع التعديل */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-14 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-sm transition-all active:scale-[0.97] flex items-center justify-center gap-2 shadow-lg border-none disabled:bg-slate-300"
+                        className={`w-full h-14 text-white rounded-2xl font-black text-sm transition-all active:scale-[0.97] flex items-center justify-center gap-2 shadow-lg border-none disabled:bg-slate-300 cursor-pointer ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-500 hover:bg-red-600'}`}
                     >
                         {loading ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : editingId ? (
+                            <><Save size={16} /> حفظ التحديثات فورا</>
                         ) : (
                             <><Plus size={16} /> تسجيل العقوبة فوريّاً</>
                         )}
                     </button>
                 </form>
 
-                {/* ── الجهة 2: الـ جدول المفلتر تلقائياً حسب الخدّام لي عازلو المدير ── */}
+                {/* ── الجهة 2: الـ جدول المفلتر (مقفول Text عادي للحماية) ── */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-[30px] border border-slate-100 shadow-sm overflow-x-auto">
                     <h4 className="text-xs font-black text-slate-900 mb-4 uppercase tracking-wider">
                         كشف اختلالات الموظف: <span className="text-red-500 underline">{selectedStaff}</span>
@@ -241,7 +291,7 @@ export default function ManagerPenalties() {
                                 <th className="p-3">السبب / نوع الخطأ</th>
                                 <th className="p-3 text-red-600">العقوبة المفروضة</th>
                                 <th className="p-3">التاريخ</th>
-                                <th className="p-3 text-left">إجراء</th>
+                                <th className="p-3 text-left">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -253,14 +303,27 @@ export default function ManagerPenalties() {
                                 </tr>
                             ) : (
                                 filteredPenaltiesOnScreen.map(p => (
-                                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="p-3 text-slate-900">📝 {p.error_type}</td>
+                                    <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors ${editingId === p.id ? 'bg-amber-50/40' : ''}`}>
+                                        {/* رجع Text عادي مأمن ومحمي من الأخطاء */}
+                                        <td className="p-3 text-slate-900 font-bold">📝 {p.error_type}</td>
                                         <td className="p-3 text-red-500 font-black">🛑 ناقص نصف يوم</td>
                                         <td className="p-3 text-slate-400 text-[10px]">
                                             {new Date(p.created_at).toLocaleDateString('fr-FR')}
                                         </td>
-                                        <td className="p-3 text-left">
-                                            <button onClick={() => handleDeletePenalty(p.id)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors">
+                                        {/* بوطونات الأكشن: تعديل يرفع الداتا لفوق وحذف يطيرها من السيستم */}
+                                        <td className="p-3 text-left flex items-center justify-end gap-2">
+                                            <button 
+                                                onClick={() => handleLoadToForm(p)} 
+                                                className="text-amber-500 hover:text-amber-700 transition-colors bg-transparent border-none cursor-pointer"
+                                                title="تعديل العقوبة (إرسال للفوق)"
+                                            >
+                                                <Edit3 size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeletePenalty(p.id)} 
+                                                className="text-slate-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer"
+                                                title="حذف العقوبة"
+                                            >
                                                 <Trash2 size={13} />
                                             </button>
                                         </td>
