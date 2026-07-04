@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect, useMemo } from 'react';
 import { Activity, Printer, CheckCircle2, UserCircle } from 'lucide-react';
 
 import { Student, AttendanceRecord, Agency } from '@/types/dashboard';
@@ -13,18 +14,29 @@ interface Props {
 export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency, instructorName }: Props) {
     const baseLessons = 12;
 
-    // 🚀 تحديث محرك الـ PDF باش يبين الحصص الإضافية
+    // 🚀 مسمار الفرز الفوري: عزل التلاميذ النشيطين وطرد أي واحد مؤرشف (archived)
+    const activeStudents = useMemo(() => {
+        return students.filter(student => {
+            // كيتأكد من كاع صيغ الأرشفة الممكنة (status أو is_archived أو archived)
+            const isArchivedStatus = student.status === 'archived';
+            const isArchivedBool = (student as any).is_archived === true || (student as any).archived === true;
+            return !isArchivedStatus && !isArchivedBool;
+        });
+    }, [students]);
+
+    // 🚀 تحديث محرك الـ PDF باش يبين الحصص الإضافية (خَدَّامْ دَابَا غِي عْلَى الـ النشيطين)
     const handlePrint = () => {
         // حساب أقصى عدد حصص كاين ف الداتا كاملة
         const maxLessonOverall = Math.max(baseLessons, ...hamzaAttendance.map(a =>
             Array.isArray(a.extra_lessons) ? Math.max(0, ...a.extra_lessons) : 0
         ));
 
-        const rows = students.map(student => {
+        // 🌟 ولى كيدير الـ map غي على activeStudents
+        const rows = activeStudents.map(student => {
             const fullName = `${student.first_name} ${student.last_name}`;
 
-            // 📅 المسمار: جلب تاريخ التسجيل بـ الضبط (يقرا registration_date أو created_at كاحتياط)
-            const rawDate = student.registration_date || student.created_at || student.inscription_date;
+            // 📅 المسمار: جلب تاريخ التسجيل بـ الضبط
+            const rawDate = student.registration_date || student.created_at || (student as any).inscription_date;
             const inscriptionDate = rawDate
                 ? new Date(rawDate).toLocaleDateString('fr-FR')
                 : '----/--/--';
@@ -64,7 +76,6 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
         <head>
             <title>تقرير تتبع الحصص</title>
             <style>
-                /* 📐 تظبيط الـ A4 باش يحبس التنقاز الخاوي */
                 @page { 
                     size: A4 portrait; 
                     margin: 6mm 5mm 5mm 5mm; 
@@ -78,33 +89,12 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
                     print-color-adjust: exact;
                 }
                 .header { text-align: center; margin-bottom: 15px; border-bottom: 4px solid #04b55f; padding-bottom: 10px; }
-                
-                table { 
-                    width: 100% !important; 
-                    border-collapse: collapse; 
-                }
-                /* 🛑 مسمار حصر السطور ف نفس الصفحة */
-                tr { 
-                    page-break-inside: avoid !important; 
-                }
-                
+                table { width: 100% !important; border-collapse: collapse; }
+                tr { page-break-inside: avoid !important; }
                 th, td { border: 1.5px solid #333; padding: 4px 2px; text-align: center; font-size: 9px; }
                 th { background-color: #f8f8f8; font-weight: bold; }
-                
-                .student-name { 
-                    text-align: right; 
-                    padding-right: 8px; 
-                    width: 110px; 
-                    font-weight: bold; 
-                }
-                /* ✨ تنسيق تاريخ التسجيل تحت السمية */
-                .inscription-date {
-                    font-size: 7.5px;
-                    font-weight: normal;
-                    color: #666;
-                    margin-top: 2px;
-                }
-                
+                .student-name { text-align: right; padding-right: 8px; width: 110px; font-weight: bold; }
+                .inscription-date { font-size: 7.5px; font-weight: normal; color: #666; margin-top: 2px; }
                 .total-cell { background-color: #f0fdf4; font-weight: 900; color: #04b55f; width: 40px; }
                 .check-icon { color: #04b55f; font-size: 14px; font-weight: 900; }
             </style>
@@ -112,7 +102,7 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
         <body dir="rtl">
             <div class="header">
                 <h1>Auto Ecole ${selectedAgency?.name || 'Boudinar'}</h1>
-                <p style="font-size: 10px; font-weight: bold;">سجل تتبع حصص السياقة (نظام الحصص الديناميكي)</p>
+                <p style="font-size: 10px; font-weight: bold;">سجل تتبع حصص السياقة (نظام الحصص النشيطة فقط)</p>
             </div>
             <table>
                 <thead>
@@ -135,27 +125,25 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
     };
 
     return (
-        <div className="space-y-6 overflow-x-hidden font-black italic tracking-tighter w-full pb-24 px-1 sm:px-0">
+        <div className="space-y-6 overflow-x-hidden font-black italic tracking-tighter w-full pb-24 px-1 sm:px-0" dir="rtl">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 no-print px-3">
                 <h2 className="text-lg font-black text-[#04b55f] flex items-center gap-2 uppercase">
                     <Activity size={20} /> تتبع الحصص العام
                 </h2>
-                <button onClick={handlePrint} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-[22px] text-xs font-black shadow-xl hover:bg-black transition-all active:scale-95">
+                <button onClick={handlePrint} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-[22px] text-xs font-black shadow-xl hover:bg-black transition-all active:scale-95 border-none cursor-pointer">
                     <Printer size={18} /> استخراج PDF
                 </button>
             </div>
 
-            {/* 📱 نسخة التليفون: Cards */}
+            {/* 📱 نسخة التليفون: Cards (شغالة دابا غي على activeStudents) */}
             <div className="grid grid-cols-1 gap-4 sm:hidden px-3">
-                {students.map(student => {
+                {activeStudents.map(student => {
                     const fullName = `${student.first_name} ${student.last_name}`;
                     const record = hamzaAttendance.find(a => a.student_id === student.id) || {} as Partial<AttendanceRecord>;
                     const extras = Array.isArray(record.extra_lessons) ? record.extra_lessons : [];
 
                     let totalDone = 0;
-                    // حساب الأساسي
                     Array.from({ length: 12 }).forEach((_, i) => { if (!!record[`s${i + 1}`]) totalDone++; });
-                    // حساب الإضافي
                     totalDone += extras.length;
 
                     return (
@@ -170,13 +158,11 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {/* عرض الأساسي */}
                                 {Array.from({ length: 12 }).map((_, i) => (
                                     <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 ${!!record[`s${i + 1}`] ? 'bg-[#04b55f] border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-transparent'}`}>
                                         <CheckCircle2 size={12} strokeWidth={4} />
                                     </div>
                                 ))}
-                                {/* عرض الإضافي بـ لون أزرق خفيف للتمييز */}
                                 {extras.sort((a: number, b: number) => a - b).map((num: number) => (
                                     <div key={num} className="w-8 h-8 rounded-lg flex items-center justify-center border-2 bg-blue-500 border-slate-900 text-white">
                                         <CheckCircle2 size={12} strokeWidth={4} />
@@ -188,7 +174,7 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
                 })}
             </div>
 
-            {/* 💻 نسخة الـ PC: الطابلو البيطوني */}
+            {/* 💻 نسخة الـ PC: الطابلو البيطوني (شغالة دابا غي على activeStudents) */}
             <div className="hidden sm:block bg-white border-2 border-slate-900 rounded-[35px] overflow-hidden">
                 <div className="overflow-x-auto w-full no-scrollbar">
                     <table className="w-full text-right min-w-[900px] border-separate border-spacing-0" dir="rtl">
@@ -202,7 +188,7 @@ export default function ManagerSuivi({ students, hamzaAttendance, selectedAgency
                             </tr>
                         </thead>
                         <tbody className="divide-y-2 divide-slate-100">
-                            {students.map(student => {
+                            {activeStudents.map(student => {
                                 const fullName = `${student.first_name} ${student.last_name}`;
                                 const record = hamzaAttendance.find(a => a.student_id === student.id) || {} as Partial<AttendanceRecord>;
                                 const extras = Array.isArray(record.extra_lessons) ? record.extra_lessons : [];
