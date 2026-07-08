@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { UserX, Trash2, Plus, Scale, Printer, Save, Edit3, X } from 'lucide-react';
+import { UserX, Trash2, Plus, Scale, Printer, Save, Edit3, X, Calendar } from 'lucide-react';
 
 const STAFF_LIST = [
     'حمزة متموري',
@@ -23,8 +23,14 @@ export default function ManagerPenalties() {
     // States د الإدخال والـتـصـفـيـة
     const [selectedStaff, setSelectedStaff] = useState(STAFF_LIST[0]);
     const [errorDescription, setErrorDescription] = useState('');
+    
+    // 🌟 اختيار تاريخ العقوبة ب اليد ف الـ Form
+    const [penaltyDate, setPenaltyDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // 🔒 مسمار ساروت التعديل: كيشد الـ ID د العقوبة لي كيتعدل دابا لفوق ف الـ Form
+    // 🌟 فلتر الشهر الحالي (YYYY-MM) باش الجدول يعرض غير عقوبات هاد الشهر وميتخلطش الشي
+    const [currentMonthFilter, setCurrentMonthFilter] = useState(new Date().toISOString().slice(0, 7));
+
+    // 🔒 مسمار ساروت التعديل
     const [editingId, setEditingId] = useState<string | null>(null);
 
     const fetchPenalties = async () => {
@@ -41,42 +47,45 @@ export default function ManagerPenalties() {
         fetchPenalties();
     }, []);
 
-    // 🚀 دالة الحفظ الذكية: كتشوف واش تسجيل جديد أولا تحديث عقوبة قديمة طلعت لفوق
+    // 🚀 دالة الحفظ والتحديث الذكية
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!errorDescription.trim()) return;
 
         setLoading(true);
+        const customTimestamp = new Date(`${penaltyDate}T${new Date().toTimeString().split(' ')[0]}`).toISOString();
+
         try {
             if (editingId) {
-                // 📝 حالة التحديث (Update):
                 const { error } = await supabase
                     .from('staff_penalties')
                     .update({
                         staff_name: selectedStaff,
-                        error_type: errorDescription
+                        error_type: errorDescription,
+                        created_at: customTimestamp
                     })
                     .eq('id', editingId);
 
                 if (!error) {
-                    alert("⚙️ تم تحديث العقوبة بنجاح  !");
-                    setEditingId(null); // ريستارت لوضع الإدخال
+                    alert("⚙️ تم تحديث العقوبة بنجاح !");
+                    setEditingId(null);
                     setErrorDescription('');
+                    setPenaltyDate(new Date().toISOString().split('T')[0]);
                     await fetchPenalties();
                 } else {
                     alert("⚠️ خطأ في التحديث: " + error.message);
                 }
             } else {
-                // ➕ حالة الإدخال الجديد (Insert):
                 const { error } = await supabase.from('staff_penalties').insert([{
                     staff_name: selectedStaff,
                     error_type: errorDescription,
-                    penalty_value: 'خصم نصف يوم'
+                    penalty_value: 'خصم نصف يوم',
+                    created_at: customTimestamp
                 }]);
 
                 if (!error) {
                     setErrorDescription('');
-                    alert("✅ تم تسجيل العقوبة بنجاح (خصم نصف يوم)");
+                    alert(`✅ تم تسجيل العقوبة بنجاح بتاريخ ${penaltyDate} (خصم نصف يوم)`);
                     await fetchPenalties();
                 } else {
                     alert("⚠️ خطأ في الحفظ: " + error.message);
@@ -86,12 +95,13 @@ export default function ManagerPenalties() {
         setLoading(false);
     };
 
-    // 🚀 مسمار سحب الداتا وإرسالها لفوق ف الـ inputs عند الضغط على تعديل
     const handleLoadToForm = (penalty: any) => {
         setEditingId(penalty.id);
         setSelectedStaff(penalty.staff_name);
         setErrorDescription(penalty.error_type);
-        // التمرير الأوتوماتيكي للفوق باش المانجر يشوف الـ inputs بالزربة ف الموبايل
+        if (penalty.created_at) {
+            setPenaltyDate(penalty.created_at.split('T')[0]);
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -102,20 +112,25 @@ export default function ManagerPenalties() {
         const { error } = await supabase.from('staff_penalties').delete().eq('id', id);
         if (!error) {
             alert("🗑️ تم الحذف بنجاح!");
-            if (editingId === id) { // إيلا تمسحات وهي كتعمر كيدير ريستارت لفوق
+            if (editingId === id) {
                 setEditingId(null);
                 setErrorDescription('');
+                setPenaltyDate(new Date().toISOString().split('T')[0]);
             }
             fetchPenalties();
         }
     };
 
-    // 🚀 مسمار الـ PDF العالمي والمضمون للتلفونات
+    // 🚀 مسمار الـ PDF العالمي المفلتر بالشهر والاسم
     const handlePrintPDF = () => {
-        const filtered = penalties.filter(p => p.staff_name === selectedStaff);
+        // الفلترة بالاسم وبداية تاريخ الشهر
+        const filtered = penalties.filter(p => 
+            p.staff_name === selectedStaff && 
+            p.created_at && p.created_at.startsWith(currentMonthFilter)
+        );
 
         if (filtered.length === 0) {
-            alert(`📝 سجل العقوبات خالي تماماً بالنسبة لـ: ${selectedStaff}`);
+            alert(`📝 سجل العقوبات خالي لهذا الشهر بالنسبة لـ: ${selectedStaff}`);
             return;
         }
 
@@ -140,13 +155,11 @@ export default function ManagerPenalties() {
         printWindow.document.write(`
             <html dir="rtl">
             <head>
-                <title>تقرير العقوبات - ${selectedStaff}</title>
+                <title>تقرير العقوبات لشهر ${currentMonthFilter} - ${selectedStaff}</title>
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
                     @page { size: A4; margin: 20mm; }
                     body { font-family: 'Tajawal', sans-serif; padding: 10px; color: #000; }
-                    .header { text-align: center; border-bottom: 4px solid #ef4444; padding-bottom: 15px; margin-bottom: 25px; }
-                    .header h1 { margin: 0; font-size: 24px; font-weight: 900; }
                     .info-box { background: #f8f9fa; border: 1px solid #000; padding: 15px; margin-bottom: 20px; border-radius: 8px; font-size: 15px; }
                     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                     th { background-color: #000; color: #fff; padding: 12px; font-size: 13px; font-weight: 900; }
@@ -157,7 +170,9 @@ export default function ManagerPenalties() {
                 <div class="info-box">
                     <strong>الاسم الكامل :</strong> <span style="font-size: 18px; color: #ef4444;">${selectedStaff}</span>
                     <br/>
-                    <strong>إجمالي المخالفات المسجلة:</strong> <span>${filtered.length} </span>
+                    <strong>الشهر المستهدف :</strong> <span style="font-weight: bold;">${currentMonthFilter}</span>
+                    <br/>
+                    <strong>إجمالي المخالفات المسجلة ف هاد الشهر:</strong> <span>${filtered.length} </span>
                 </div>
 
                 <table>
@@ -182,34 +197,51 @@ export default function ManagerPenalties() {
         `);
 
         printWindow.document.close();
-
         setTimeout(() => {
             if (document.body.contains(iframe)) document.body.removeChild(iframe);
         }, 5000);
     };
 
-    const filteredPenaltiesOnScreen = penalties.filter(p => p.staff_name === selectedStaff);
+    // 🌟 مسمار الفلترة على الشاشة: الفلترة بـ الاسم + الـشهر ب دقة عالية
+    const filteredPenaltiesOnScreen = penalties.filter(p => 
+        p.staff_name === selectedStaff && 
+        p.created_at && p.created_at.startsWith(currentMonthFilter)
+    );
 
     return (
         <div className="space-y-6 bg-[#F3F4F6]/60 p-4 rounded-[35px] font-black tracking-tighter uppercase text-right w-full italic" dir="rtl">
 
-            {/* ── الرأس المطور بـ بوطون الـ PDF العالمي ── */}
+            {/* ── الرأس المطور بـ بوطون الـ PDF العالمي والـتصفية بالشهر ── */}
             <div className="bg-white p-6 rounded-[25px] border border-slate-100 shadow-sm flex items-center justify-between flex-wrap gap-4">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2">
                     <Scale size={20} className="text-red-500 animate-pulse" /> نظام ضبط عقوبات الموظفين
                 </h2>
 
-                <button
-                    onClick={handlePrintPDF}
-                    className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow-lg transition-all active:scale-95 border-none cursor-pointer"
-                >
-                    <Printer size={14} className="text-red-500" /> استخراج بيان العقوبات (PDF) 📄
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* 🌟 فلتر اختيار الشهر والسنة الذكي للجدول والطباعة */}
+                    <div className="flex items-center gap-2 bg-slate-100 px-4 py-2.5 rounded-2xl border border-slate-200">
+                        <Calendar size={14} className="text-slate-500" />
+                        <span className="text-[10px] text-slate-500 font-bold">عرض شهر:</span>
+                        <input 
+                            type="month" 
+                            value={currentMonthFilter}
+                            onChange={(e) => setCurrentMonthFilter(e.target.value)}
+                            className="bg-transparent text-slate-900 border-none outline-none font-black text-xs cursor-pointer"
+                        />
+                    </div>
+
+                    <button
+                        onClick={handlePrintPDF}
+                        className="flex items-center gap-2 bg-slate-900 hover:bg-black text-white px-5 py-3 rounded-2xl text-[10px] font-black shadow-lg transition-all active:scale-95 border-none cursor-pointer"
+                    >
+                        <Printer size={14} className="text-red-500" /> استخراج بيان العقوبات (PDF) 📄
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-                {/* ── الجهة 1: الـ Form الذكي (تسجيل جديد أو تعديل طالع من التابلو) ── */}
+                {/* ── الجهة 1: الـ Form الذكي ── */}
                 <form onSubmit={handleFormSubmit} className={`bg-white p-6 rounded-[30px] border shadow-sm space-y-4 transition-all duration-300 ${editingId ? 'border-amber-400 ring-2 ring-amber-400/20' : 'border-slate-100'}`}>
                     <header className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
@@ -220,13 +252,23 @@ export default function ManagerPenalties() {
                                 {editingId ? 'تعديل وتحديث المخالفة' : 'تسجيل مخالفة جديدة'}
                             </h4>
                         </div>
-                        {/* بوطون إلغاء التعديل لإرجاع الفورم للوضع الطبيعي بأمان */}
                         {editingId && (
-                            <button type="button" onClick={() => { setEditingId(null); setErrorDescription(''); }} className="text-slate-400 hover:text-rose-500 p-1 bg-slate-50 rounded-md border-none cursor-pointer">
+                            <button type="button" onClick={() => { setEditingId(null); setErrorDescription(''); setPenaltyDate(new Date().toISOString().split('T')[0]); }} className="text-slate-400 hover:text-rose-500 p-1 bg-slate-50 rounded-md border-none cursor-pointer">
                                 <X size={14} />
                             </button>
                         )}
                     </header>
+
+                    <div className="space-y-1">
+                        <label className="text-[11px] text-slate-400 pr-3 block font-black">تاريخ المخالفة / العقوبة</label>
+                        <input
+                            type="date"
+                            value={penaltyDate}
+                            onChange={(e) => setPenaltyDate(e.target.value)}
+                            className="w-full h-14 px-4 bg-slate-50 border-2 border-slate-50 rounded-2xl outline-none text-slate-900 text-xs font-black focus:border-red-500 cursor-pointer"
+                            required
+                        />
+                    </div>
 
                     <div className="space-y-1">
                         <label className="text-[11px] text-slate-400 pr-3 block font-black">الموظف / العامل المستهدف</label>
@@ -263,7 +305,6 @@ export default function ManagerPenalties() {
                         />
                     </div>
 
-                    {/* البوطون الديناميكي كيتغير شكله ولونه أوتوماتيك ف وضع التعديل */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -279,10 +320,10 @@ export default function ManagerPenalties() {
                     </button>
                 </form>
 
-                {/* ── الجهة 2: الـ جدول المفلتر (مقفول Text عادي للحماية) ── */}
+                {/* ── الجهة 2: الـ جدول المفلتر بـ الاسم والشهر معاً ── */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-[30px] border border-slate-100 shadow-sm overflow-x-auto">
                     <h4 className="text-xs font-black text-slate-900 mb-4 uppercase tracking-wider">
-                        كشف اختلالات الموظف: <span className="text-red-500 underline">{selectedStaff}</span>
+                        كشف اختلالات الموظف لشهر <span className="text-blue-600">{currentMonthFilter}</span> : <span className="text-red-500 underline">{selectedStaff}</span>
                     </h4>
 
                     <table className="w-full text-right border-collapse text-xs font-black text-slate-800">
@@ -298,19 +339,17 @@ export default function ManagerPenalties() {
                             {filteredPenaltiesOnScreen.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="p-8 text-center text-slate-300 font-bold italic">
-                                        السجل نظيف تماماً لهذا الموظف، لا توجد عقوبات جارية.
+                                        السجل نظيف تماماً لهذا الموظف فـ هاد الشهر المعزول.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredPenaltiesOnScreen.map(p => (
                                     <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors ${editingId === p.id ? 'bg-amber-50/40' : ''}`}>
-                                        {/* رجع Text عادي مأمن ومحمي من الأخطاء */}
                                         <td className="p-3 text-slate-900 font-bold">📝 {p.error_type}</td>
                                         <td className="p-3 text-red-500 font-black">🛑 ناقص نصف يوم</td>
                                         <td className="p-3 text-slate-400 text-[10px]">
                                             {new Date(p.created_at).toLocaleDateString('fr-FR')}
                                         </td>
-                                        {/* بوطونات الأكشن: تعديل يرفع الداتا لفوق وحذف يطيرها من السيستم */}
                                         <td className="p-3 text-left flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => handleLoadToForm(p)} 

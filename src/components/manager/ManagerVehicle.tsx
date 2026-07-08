@@ -13,11 +13,20 @@ interface Props {
 
 export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expense, selectedAgency, instructorName }: Props) {
 
+    // 🚀 مسمار الحل: دالة كتعرف الطوموبيل أوتوماتيك على حساب الوكالة المعزولة بلا تروين
+    const getVehicleName = () => {
+        const agencyName = selectedAgency?.name || 'Boudinar';
+        if (agencyName === 'Krona') return 'Dacia Sandero'; // كرونا كتاخد الداسيا
+        if (agencyName === 'Azghar') return 'Clio4';        // أزغار كتاخد الكليو
+        return 'Peugeot 208'; // بودينار كتاخد بيجو
+    };
+
     /// 🚀 دالة طباعة تقرير السيارة (أسبوعي بسيط) - نسخة الأندرويد المضمونة
     const handlePrintVehicle = () => {
         const totalDistance = (mileage_end > mileage_start) ? (mileage_end - mileage_start) : 0;
+        const currentVehicle = getVehicleName();
 
-        // ✅ المسمار: كرينا Iframe مخفي بلاصة window.open
+        // ✅ المسمار: كرينا Iframe مخفي بلاصة window.open لضمان الطبع ف التلفونات والـ PC
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
@@ -47,7 +56,10 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
             <div class="header">
                 <h1>Auto Ecole ${selectedAgency?.name || 'Boudinar'}</h1>
                 <p>تقرير حركة السيارة واستهلاك الوقود الاسبوعي</p>
-                <span>Peugeot208</span>
+                <!-- 🚀 مسمار التحديث الديناميكي العكسي ف الـ PDF نيشان -->
+                <span style="font-size: 20px; font-weight: 900; color: #04b55f; border: 2px solid #000; padding: 4px 15px; border-radius: 5px; display: inline-block; margin-top: 10px;">
+                    ${currentVehicle}
+                </span>
             </div>
 
             <table>
@@ -84,16 +96,21 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
 
         printWindow.document.close();
 
-        // المسمار: كيسد الماكينة من بعد ما تسالي الطباعة
         iframe.onload = () => {
             setTimeout(() => {
-                // document.body.removeChild(iframe); 
+                if (document.body.contains(iframe)) document.body.removeChild(iframe);
             }, 2000);
         };
     };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-700 font-black italic uppercase tracking-tighter">
+        <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-700 font-black italic uppercase tracking-tighter text-right" dir="rtl">
+
+            {/* 🔝 كارت علوي مفرز كيبين اسم السيارة الديناميكية والمدرب ديالها لنقاوة الواجهة */}
+            <div className="bg-slate-900 text-white p-4 rounded-[22px] flex items-center justify-between shadow-md mb-2">
+                <span className="text-xs font-black">المركبة الجارية: <span className="text-emerald-400">{getVehicleName()}</span></span>
+                <span className="text-[10px] opacity-60">المدرب المسؤول: {instructorName || '----'}</span>
+            </div>
 
             {/* 1. عداد البداية */}
             <div className="space-y-1">
@@ -135,10 +152,10 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
                 </div>
             </div>
 
-            {/* 🚀 بوطونة استخراج الـ PDF */}
+            {/* 🚀 بوطونة استخراج الـ PDF الذكي */}
             <button
                 onClick={handlePrintVehicle}
-                className="w-full h-16 bg-slate-900 text-white rounded-[28px] flex items-center justify-center gap-3 font-black text-sm shadow-xl hover:bg-black transition-all active:scale-95 mt-6"
+                className="w-full h-16 bg-slate-900 text-white rounded-[28px] flex items-center justify-center gap-3 font-black text-sm shadow-xl hover:bg-black transition-all active:scale-95 mt-6 border-none cursor-pointer"
             >
                 <FileText size={20} /> تـحـمـيـل تـقـريـر الـسـيـارة (PDF)
             </button>

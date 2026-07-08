@@ -7,6 +7,9 @@ export default function HolidaysTracker() {
     const [holidays, setHolidays] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isHalfDay, setIsHalfDay] = useState(false);
+    
+    // 🌟 الساروت د المرونة: المانجر يقدر يختار التاريخ لي بغا بحال الـ GPRS والديفو هو تاريخ اليوم
+    const [selectedHolidayDate, setSelectedHolidayDate] = useState(new Date().toISOString().split('T')[0]);
 
     const TOTAL_FIXED = 21;
     const START_TRACKING_DATE = '2026-05-08'; // تاريخ بداية عرض التواريخ في الـ PDF
@@ -30,33 +33,34 @@ export default function HolidaysTracker() {
         window.print();
     };
 
-    // 🚀 مسمار تسجيل الغياب (مع منطق الـ 0.5 والمنع)
+    // 🚀 تسجيل الغياب المرن (بناءً على التاريخ المعزول بـ اليد)
     const addTodayHoliday = async (name: string) => {
-        const today = new Date().toLocaleDateString('en-CA');
+        // 🌟 هنا بدلنا today وخدينا التاريخ لي عزل المانجر ف الـ Input
+        const targetDate = selectedHolidayDate; 
         const requestedValue = isHalfDay ? 0.5 : 1;
 
         const { data: existingRecords } = await supabase
             .from('instructor_holidays')
             .select('*')
             .eq('instructor_name', name)
-            .eq('holiday_date', today);
+            .eq('holiday_date', targetDate);
 
         const totalToday = (existingRecords || []).reduce((sum, h) => sum + (Number(h.duration) || 0), 0);
 
         if (totalToday >= 1) {
-            alert(`❌ حبس! ${name} ديجا كمل "يوم كامل" (1.0) اليوم.`);
+            alert(`❌ حبس! ${name} ديجا كمل "يوم كامل" (1.0) في تاريخ ${targetDate}.`);
             return;
         }
 
         if (!isHalfDay && totalToday > 0) {
-            alert(`❌ ما يمكنش تسجل "يوم كامل" لأن ${name} ديجا عندو ${totalToday} مسجلة. كملها بـ 0.5.`);
+            alert(`❌ ما يمكنش تسجل "يوم كامل" لأن ${name} ديجا عندو ${totalToday} مسجلة في هاد التاريخ. كملها بـ 0.5.`);
             return;
         }
 
         const { error } = await supabase.from('instructor_holidays').insert([
             {
                 instructor_name: name,
-                holiday_date: today,
+                holiday_date: targetDate, // 🌟 كيتسجل التاريخ لي تختار
                 duration: requestedValue,
                 notes: isHalfDay ? 'نصف يوم عمل' : 'يوم عمل كامل'
             }
@@ -64,7 +68,7 @@ export default function HolidaysTracker() {
 
         if (!error) {
             fetchHolidays();
-            alert(`✅ تم تسجيل ${requestedValue} لـ ${name}.`);
+            alert(`✅ تم تسجيل ${requestedValue} لـ ${name} بتاريخ ${targetDate}.`);
         }
     };
 
@@ -150,7 +154,19 @@ export default function HolidaysTracker() {
                     <p className="text-[10px] md:text-xs text-slate-400 uppercase tracking-[2px]">نظام العطل - 21 يوم</p>
                 </div>
 
-                <div className="flex flex-wrap gap-3 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center items-center">
+                    
+                    {/* 🌟 1️⃣ خانة اختيار تاريخ العطلة (بحال الـ GPRS تما) */}
+                    <div className="flex items-center gap-2 bg-slate-800 border-2 border-slate-700 px-4 py-2.5 rounded-[25px]">
+                        <label className="text-[10px] text-slate-400 uppercase font-black whitespace-nowrap">تاريخ العطلة:</label>
+                        <input 
+                            type="date" 
+                            value={selectedHolidayDate} 
+                            onChange={(e) => setSelectedHolidayDate(e.target.value)}
+                            className="bg-transparent text-white font-black text-[12px] outline-none cursor-pointer"
+                        />
+                    </div>
+
                     <button onClick={handlePrint} className="bg-emerald-500 text-white px-6 py-4 rounded-[25px] text-[12px] font-black flex items-center gap-2 shadow-lg active:scale-95 transition-all">
                         تقرير PDF <FileText size={18} />
                     </button>
@@ -185,8 +201,9 @@ export default function HolidaysTracker() {
                                     <span className="text-lg font-black">{remaining.toFixed(1)}</span>
                                 </div>
                             </div>
-                            <button onClick={() => { if (confirm(`تسجيل غياب لـ ${name}؟`)) addTodayHoliday(name); }} disabled={remaining <= 0} className={`w-full py-4 rounded-2xl font-black text-[11px] flex items-center justify-center gap-2 transition-all ${remaining <= 0 ? 'bg-slate-50 text-slate-200' : 'bg-slate-900 text-white shadow-lg active:scale-95'}`}>
-                                <CheckCircle2 size={16} /> {isHalfDay ? 'تسجيل 0.5 اليوم' : 'تسجيل يوم كامل'}
+                            {/* 🌟 تعديل نص البوطون باش يبين أوتوماتيك واش 0.5 ولا 1.0 */}
+                            <button onClick={() => { if (confirm(`تسجيل غياب لـ ${name} بتاريخ ${selectedHolidayDate}؟`)) addTodayHoliday(name); }} disabled={remaining <= 0} className={`w-full py-4 rounded-2xl font-black text-[11px] flex items-center justify-center gap-2 transition-all ${remaining <= 0 ? 'bg-slate-50 text-slate-200' : 'bg-slate-900 text-white shadow-lg active:scale-95'}`}>
+                                <CheckCircle2 size={16} /> {isHalfDay ? 'سجل 0.5 فـ التاريخ المختار' : 'سجل يوم كامل فـ التاريخ المختار'}
                             </button>
                         </div>
                     );
@@ -207,7 +224,6 @@ export default function HolidaysTracker() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {instructors.map((name) => {
-                            // تصفية التواريخ للتقرير فقط (منذ اليوم)
                             const recentHolidays = holidays.filter(h => h.instructor_name === name && h.holiday_date >= START_TRACKING_DATE);
                             const usedTotal = holidays.filter(h => h.instructor_name === name).reduce((sum, h) => sum + (Number(h.duration) || 0), 0);
                             const remainingTotal = TOTAL_FIXED - usedTotal;
@@ -236,6 +252,7 @@ export default function HolidaysTracker() {
                                     </td>
 
                                     <td className="p-8 text-center no-print">
+                                        {/* 🌟 البوطون دابا كتدخل الغياب ف التاريخ المختار ديريكت */}
                                         <button onClick={() => addTodayHoliday(name)} disabled={remainingTotal <= 0} className={`px-8 py-4 rounded-[22px] font-black text-[12px] flex items-center gap-2 mx-auto transition-all ${remainingTotal <= 0 ? 'bg-slate-50 text-slate-200' : 'bg-slate-900 text-white hover:bg-emerald-600 active:scale-95 shadow-xl shadow-slate-900/10'}`}>
                                             <CheckCircle2 size={16} /> {isHalfDay ? 'سجل 0.5' : 'سجل 1.0'}
                                         </button>

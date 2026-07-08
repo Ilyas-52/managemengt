@@ -924,19 +924,29 @@ export default function ManagerTerminal() {
 function ManagerFleetOperations() {
     const [records, setRecords] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    // 1️⃣ التعديل: البداية التلقائية ديريكت بـ Clio 4 ف البلاصة د الكل
     const [vehicleFilter, setVehicleFilter] = useState('Clio 4');
+
+    // 🌟 1️⃣ ستيتس جديدة للمودال والفورم ديال المانجر وسط نفس المكون
+    const [isFleetModalOpen, setIsFleetModalOpen] = useState(false);
+    const [fleetImages, setFleetImages] = useState<File[]>([]);
+    const [fleetFormData, setFleetFormData] = useState({
+        action_type: 'handover', // تسليم أو إرجاع
+        vehicle_name: 'Clio 4',
+        counterparty_name: '',
+        log_date: new Date().toISOString().split('T')[0],
+        log_time: new Date().toTimeString().split(' ')[0].slice(0, 5),
+        km_reading: '',
+        fuel_expenses: ''
+    });
 
     const fetchRecords = async (filter: string) => {
         setLoading(true);
-
-        // غانـاخدو غي الكلمة الأولى د الطوموبيل (مثلاً Peugeot أو Mercedes) باش نطابقو مع الداتابيز
         const cleanFilter = filter.split(' ')[0].trim();
 
         const { data } = await supabase
             .from('fleet_operations')
             .select('*')
-            .ilike('vehicle_name', `%${cleanFilter}%`) // فلتر ذكي كيجيب الكلمة وخا تكون جزء من النص
+            .ilike('vehicle_name', `%${cleanFilter}%`)
             .order('created_at', { ascending: false });
 
         if (data) setRecords(data);
@@ -962,7 +972,6 @@ function ManagerFleetOperations() {
         }
     };
 
-    // 🗑️ دالة حذف عملية من الأسطول بالكامل مأمنة 100% بلا خط أحمر
     const handleDeleteFleet = async (id: string) => {
         try {
             const { error } = await supabase
@@ -973,10 +982,86 @@ function ManagerFleetOperations() {
             if (error) throw error;
 
             alert('✅ تم حذف العملية بنجاح');
-            window.location.reload();
+            fetchRecords(vehicleFilter); // تحديث الطابلو مباشرة بلا ريفريش كامل للصفحة
 
         } catch (error: any) {
             alert('❌ خطأ في الحذف: ' + error.message);
+        }
+    };
+
+    // 🌟 2️⃣ دالة حفظ العملية الجديدة لي كيعمرها المانجر ف قاعدة البيانات
+    const handleFleetSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            let uploadedUrls: any[] = [];
+
+            // إذا رفع المانجر صور كيدوزو هنا لـ Supabase Storage
+            if (fleetImages.length > 0) {
+                for (const file of fleetImages) {
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Math.random()}.${fileExt}`;
+                    const filePath = `fleet/${fileName}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('images')
+                        .upload(filePath, file);
+
+                    if (!uploadError) {
+                        const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
+                        uploadedUrls.push({
+                            type: fleetFormData.action_type,
+                            url: urlData.publicUrl
+                        });
+                    }
+                }
+            }
+
+            const payload: any = {
+                vehicle_name: fleetFormData.vehicle_name,
+                counterparty_name: fleetFormData.counterparty_name,
+                operator_name: "المدير (يونس)", // تسجيل المسؤول أنه المانجر ديريكت
+                images_urls: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
+            };
+
+            if (fleetFormData.action_type === 'handover') {
+                payload.status = 'open';
+                payload.km_reading = Number(fleetFormData.km_reading);
+                payload.log_date = fleetFormData.log_date;
+                payload.log_time = fleetFormData.log_time;
+            } else {
+                payload.status = 'closed';
+                payload.km_reading_return = Number(fleetFormData.km_reading);
+                payload.log_date_return = fleetFormData.log_date;
+                payload.log_time_return = fleetFormData.log_time;
+                payload.fuel_expenses = Number(fleetFormData.fuel_expenses);
+            }
+
+            const { error } = await supabase
+                .from('fleet_operations')
+                .insert([payload]);
+
+            if (error) throw error;
+
+            alert('✅ تم تسجيل العملية بنجاح وستظهر في الجدول التحت');
+            setIsFleetModalOpen(false);
+            setFleetImages([]);
+            setFleetFormData({
+                action_type: 'handover',
+                vehicle_name: 'Clio 4',
+                counterparty_name: '',
+                log_date: new Date().toISOString().split('T')[0],
+                log_time: new Date().toTimeString().split(' ')[0].slice(0, 5),
+                km_reading: '',
+                fuel_expenses: ''
+            });
+            fetchRecords(vehicleFilter); // كيريفريشي الطابلو ف البلاصة باش تطلع العملية الجديدة
+
+        } catch (error: any) {
+            alert('❌ خطأ في الحفظ: ' + error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -990,7 +1075,6 @@ function ManagerFleetOperations() {
         if (vehicleFilter === 'Peugeot 208') return "👤 السائق: حمزة • وكالة بودينار";
         if (vehicleFilter === 'Opel Corsa') return "👤    السائق: بلقاسمي  • وكالة تازغين";
         if (vehicleFilter === 'Dacia Logan') return "👤   السائق: إسماعيل  • وكالة ازغار";
-        // 🌟 مسمار البادج: ضبط السائق والوكالة لـ Mercedes 190 تابعة لـ بودينار
         if (vehicleFilter === 'Mercedes 190') return "👤 السائق: يونس (المدير)   ";
         return "🗂️ سيارة الأسطول الحالية";
     };
@@ -1007,20 +1091,31 @@ function ManagerFleetOperations() {
                         {getDriverBadge()}
                     </span>
                 </div>
-                <div className="w-full md:w-56 text-right">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">تصفية حسب السيارة</label>
-                    <select
-                        value={vehicleFilter}
-                        onChange={(e) => handleVehicleChange(e.target.value)}
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer"
+
+                {/* 🌟 3️⃣ تعديل الهيدر: زيادة بوطون "تسجيل عملية" مع السلكت د الفلتر */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                    <button
+                        type="button"
+                        onClick={() => setIsFleetModalOpen(true)}
+                        className="flex items-center justify-center gap-1.5 text-white bg-slate-900 hover:bg-slate-800 px-4 py-2.5 rounded-xl text-xs font-black transition-colors shadow-sm whitespace-nowrap"
                     >
-                        <option value="Clio 4">Clio 4</option>
-                        <option value="Peugeot 208">Peugeot 208</option>
-                        <option value="Opel Corsa">Opel Corsa</option>
-                        <option value="Dacia Logan">Dacia Logan</option>
-                        {/* 🌟 مسمار الفلتر: إضافة خيار الـ Mercedes 190 ف الـ Select د المانجر */}
-                        <option value="Mercedes 190">Mercedes 190 </option>
-                    </select>
+                        <span>📋 تسجيل عملية جديدة</span>
+                    </button>
+
+                    <div className="w-full md:w-56 text-right">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">تصفية حسب السيارة</label>
+                        <select
+                            value={vehicleFilter}
+                            onChange={(e) => handleVehicleChange(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer"
+                        >
+                            <option value="Clio 4">Clio 4</option>
+                            <option value="Peugeot 208">Peugeot 208</option>
+                            <option value="Opel Corsa">Opel Corsa</option>
+                            <option value="Dacia Logan">Dacia Logan</option>
+                            <option value="Mercedes 190">Mercedes 190 </option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -1051,20 +1146,109 @@ function ManagerFleetOperations() {
                     </tbody>
                 </table>
             </div>
+
+            {/* 🌟 4️⃣ زيادة الفورم د المانجر هنا لتحت وسط نفس المكون كيتفتح بـ Modal مأمن وزوين */}
+            {isFleetModalOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-lg border border-slate-200 text-right">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-black text-slate-800">📋 طلب تسليم أو إرجاع سيارة</h2>
+                            <button
+                                type="button"
+                                onClick={() => { setIsFleetModalOpen(false); setFleetImages([]); }}
+                                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500 font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleFleetSubmit} className="space-y-5">
+                            <div className="flex bg-slate-100 p-1 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() => { setFleetFormData({ ...fleetFormData, action_type: 'handover' }); setFleetImages([]); }}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                >
+                                    📥 تسليم (خروج)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setFleetFormData({ ...fleetFormData, action_type: 'return' }); setFleetImages([]); }}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                >
+                                    📤 إرجاع (دخول)
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">السيارة</label>
+                                    <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300">
+                                        <option value="Clio 4">Clio 4</option>
+                                        <option value="Peugeot 208">Peugeot 208</option>
+                                        <option value="Opel Corsa">Opel Corsa</option>
+                                        <option value="Dacia Logan">Dacia Logan</option>
+                                        <option value="Mercedes 190">Mercedes 190</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الطرف المستلم للسيارة</label>
+                                    <input type="text" required value={fleetFormData.counterparty_name} onChange={(e) => setFleetFormData({ ...fleetFormData, counterparty_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="مثال: حمزة، يوسف..." />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">التاريخ</label>
+                                    <input type="date" required value={fleetFormData.log_date} onChange={(e) => setFleetFormData({ ...fleetFormData, log_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الوقت</label>
+                                    <input type="time" required value={fleetFormData.log_time} onChange={(e) => setFleetFormData({ ...fleetFormData, log_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الكيلومتراج (KM)</label>
+                                    <input type="number" required value={fleetFormData.km_reading} onChange={(e) => setFleetFormData({ ...fleetFormData, km_reading: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
+                                </div>
+
+                                {fleetFormData.action_type === 'return' && (
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">مصاريف الوقود (DH)</label>
+                                        <input type="number" required value={fleetFormData.fuel_expenses} onChange={(e) => setFleetFormData({ ...fleetFormData, fuel_expenses: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
+                                    </div>
+                                )}
+
+                                <div className="sm:col-span-2">
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">📸 صور السيارة</label>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={(e) => { if (e.target.files) setFleetImages(Array.from(e.target.files)); }}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-200"
+                                    />
+                                    {fleetImages.length > 0 && (
+                                        <p className="text-[10px] font-black text-emerald-600 mt-1">📊 تم اختيار {fleetImages.length} صور جاهزة للرفع.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-black mt-2 hover:bg-slate-800 transition-colors disabled:opacity-50">
+                                {loading ? 'جاري الحفظ والرفع...' : '✅ تأكيد العملية وإدراجها'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
+// 🌟 5️⃣ المكون الفرعي FleetRow كيبقى كيف ما هو تحت منو مباشرة ف نفس الملف
 function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void; onDelete?: (id: string) => void; onEdit?: (row: any) => void }) {
     const [maxVitesse, setMaxVitesse] = useState(row.max_vitesse || '');
     const [managerNotes, setManagerNotes] = useState(row.manager_notes || '');
-
-    // 🔒 ساروت التحكم: واش الخانات مفتوحين للتعديل أو مقفولين
     const [isEditable, setIsEditable] = useState(false);
 
     const isClosed = row.status === 'closed';
 
-    // تفكيك النص الطويل وتحويله لمصفوفة
     let images: any[] = [];
     if (row.images_urls) {
         if (typeof row.images_urls === 'string') {
@@ -1079,33 +1263,26 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
     }
 
     const handleConfirmSave = () => {
-        // عيط للدالة د الحفظ الأصلية ديالك وصيفط ليها الداتا
         onSave(row.id, maxVitesse, managerNotes);
-        setIsEditable(false); // قفل الخانات عاوتاني مورا الحفظ
+        setIsEditable(false);
     };
 
     return (
         <tr className={`hover:bg-slate-50/60 transition-colors align-top border-b border-slate-100 ${isEditable ? 'bg-amber-50/20' : ''}`}>
-            {/* Status Badge */}
             <td className="p-3">
                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wide whitespace-nowrap ${isClosed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                     {isClosed ? '✅ مغلق' : '🟡 مفتوح'}
                 </span>
             </td>
-            {/* Vehicle */}
             <td className="p-3 text-slate-700 whitespace-nowrap font-black">{row.vehicle_name || '---'}</td>
-            {/* Operator */}
             <td className="p-3 text-slate-700 whitespace-nowrap">{row.operator_name || '---'}</td>
-            {/* Counterparty */}
             <td className="p-3 text-slate-600 whitespace-nowrap">{row.counterparty_name || '---'}</td>
-            {/* Handover */}
             <td className="p-3" dir="ltr">
                 <div className="flex flex-col items-end gap-0.5">
                     <span className="font-bold text-slate-900">{row.km_reading ?? '---'} km</span>
                     <span className="text-[10px] text-slate-400 whitespace-nowrap">{row.log_date} {row.log_time}</span>
                 </div>
             </td>
-            {/* Return */}
             <td className="p-3" dir="ltr">
                 {isClosed ? (
                     <div className="flex flex-col items-end gap-0.5">
@@ -1116,7 +1293,6 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                     <span className="text-slate-300 italic text-[10px] whitespace-nowrap">لم يُرجع بعد</span>
                 )}
             </td>
-            {/* Distance */}
             <td className="p-3">
                 {isClosed && row.distance_traveled != null ? (
                     <span className="bg-blue-50 text-blue-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
@@ -1124,7 +1300,6 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                     </span>
                 ) : <span className="text-slate-300">---</span>}
             </td>
-            {/* Fuel */}
             <td className="p-3">
                 {isClosed && row.fuel_expenses != null ? (
                     <span className="bg-orange-50 text-orange-800 px-2.5 py-1 rounded-lg text-[10px] font-black whitespace-nowrap">
@@ -1133,7 +1308,6 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                 ) : <span className="text-slate-300">---</span>}
             </td>
 
-            {/* 📥 صور التسليم */}
             <td className="p-3 border-b text-center align-middle">
                 <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
                     {images.map((imgStr: any, i: number) => {
@@ -1162,7 +1336,6 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                 </div>
             </td>
 
-            {/* 📤 صور الإرجاع */}
             <td className="p-3 border-b text-center align-middle">
                 <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
                     {images.map((imgStr: any, i: number) => {
@@ -1185,22 +1358,20 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                 </div>
             </td>
 
-            {/* 🏎️ السرعة القصوى: مقفولة أوتوماتيك ومفتوحة غي بـ زر تعديل */}
             <td className="p-3">
                 <input
                     type="text"
-                    disabled={!isEditable} // 🔒 قفل صارم هنا
+                    disabled={!isEditable}
                     value={maxVitesse}
                     onChange={e => setMaxVitesse(e.target.value)}
                     placeholder="km/h"
                     className={`w-16 border-2 rounded-lg px-2 py-1.5 outline-none text-center text-xs font-bold transition-colors ${isEditable ? 'bg-white border-amber-400 focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed'}`}
                 />
             </td>
-            {/* 📝 الملاحظات: مقفولة أوتوماتيك ومفتوحة غي بـ زر تعديل */}
             <td className="p-3">
                 <input
                     type="text"
-                    disabled={!isEditable} // 🔒 قفل صارم هنا
+                    disabled={!isEditable}
                     value={managerNotes}
                     onChange={e => setManagerNotes(e.target.value)}
                     placeholder="ملاحظات..."
@@ -1208,10 +1379,8 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                 />
             </td>
 
-            {/* 🛠️ الإجراءات الفنية الصافية */}
             <td className="p-3 text-center">
                 <div className="flex flex-col items-center gap-1 min-w-[120px]">
-                    {/* بوطون الحفظ كيبان غي إيلا برك على تعديل وفتح الخانات */}
                     {isEditable ? (
                         <button
                             type="button"
@@ -1235,11 +1404,7 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                         </button>
                         <button
                             type="button"
-                            onClick={() => {
-                                if (confirm('واش بصح باغي تمسح هاد السطر؟')) {
-                                    onDelete?.(row.id);
-                                }
-                            }}
+                            onClick={() => { if (confirm('واش بصح باغي تمسح هاد السطر؟')) onDelete?.(row.id); }}
                             className="flex-1 py-0.5 text-[10px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-md transition-colors border border-rose-100"
                         >
                             حذف
