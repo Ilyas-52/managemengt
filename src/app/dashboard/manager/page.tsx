@@ -921,18 +921,25 @@ export default function ManagerTerminal() {
 // ==========================================
 // Fleet Control Panel (Fleet Operations)
 // ==========================================
+// ==========================================
+// Fleet Control Panel (Fleet Operations)
+// ==========================================
+// ==========================================
+// Fleet Control Panel (Fleet Operations)
+// ==========================================
 function ManagerFleetOperations() {
     const [records, setRecords] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [vehicleFilter, setVehicleFilter] = useState('Clio 4');
 
-    // 🌟 1️⃣ ستيتس جديدة للمودال والفورم ديال المانجر وسط نفس المكون
+    // ستيتس المودال والفورم ديال المانجر
     const [isFleetModalOpen, setIsFleetModalOpen] = useState(false);
     const [fleetImages, setFleetImages] = useState<File[]>([]);
     const [fleetFormData, setFleetFormData] = useState({
-        action_type: 'handover', // تسليم أو إرجاع
+        action_type: 'handover', 
         vehicle_name: 'Clio 4',
-        counterparty_name: '',
+        operator_name: '',      
+        counterparty_name: '',  
         log_date: new Date().toISOString().split('T')[0],
         log_time: new Date().toTimeString().split(' ')[0].slice(0, 5),
         km_reading: '',
@@ -980,83 +987,121 @@ function ManagerFleetOperations() {
                 .eq('id', id);
 
             if (error) throw error;
-
             alert('✅ تم حذف العملية بنجاح');
-            fetchRecords(vehicleFilter); // تحديث الطابلو مباشرة بلا ريفريش كامل للصفحة
-
+            fetchRecords(vehicleFilter); 
         } catch (error: any) {
             alert('❌ خطأ في الحذف: ' + error.message);
         }
     };
 
-    // 🌟 2️⃣ دالة حفظ العملية الجديدة لي كيعمرها المانجر ف قاعدة البيانات
+    // 🚀 دالة الحفظ المصلحة بالكامل بـ صيغة Postgres Array المضمونة لمنع الـ null
     const handleFleetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            let uploadedUrls: any[] = [];
+            let uploadedUrls: string[] = []; 
 
-            // إذا رفع المانجر صور كيدوزو هنا لـ Supabase Storage
+            // رفع الصور لـ Storage
             if (fleetImages.length > 0) {
                 for (const file of fleetImages) {
                     const fileExt = file.name.split('.').pop();
                     const fileName = `${Math.random()}.${fileExt}`;
                     const filePath = `fleet/${fileName}`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('images')
-                        .upload(filePath, file);
-
+                    const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
+                    
                     if (!uploadError) {
                         const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
-                        uploadedUrls.push({
-                            type: fleetFormData.action_type,
-                            url: urlData.publicUrl
-                        });
+                        // ندمج الرابط مع النوع
+                        uploadedUrls.push(`${urlData.publicUrl}||${fleetFormData.action_type}`);
                     }
                 }
             }
 
-            const payload: any = {
-                vehicle_name: fleetFormData.vehicle_name,
-                counterparty_name: fleetFormData.counterparty_name,
-                operator_name: "المدير (يونس)", // تسجيل المسؤول أنه المانجر ديريكت
-                images_urls: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null
-            };
-
             if (fleetFormData.action_type === 'handover') {
-                payload.status = 'open';
-                payload.km_reading = Number(fleetFormData.km_reading);
-                payload.log_date = fleetFormData.log_date;
-                payload.log_time = fleetFormData.log_time;
+                // 📥 وضع التسليم: INSERT
+                // 🌟 تحويل المصفوفة لصيغة Postgres الحقيقية لعمود text[]: {"url1","url2"}
+                const pgArray = uploadedUrls.length > 0 ? `{${uploadedUrls.map(u => `"${u}"`).join(',')}}` : null;
+
+                const payload = {
+                    action_type: 'handover',
+                    status: 'open',
+                    vehicle_name: fleetFormData.vehicle_name,
+                    operator_name: fleetFormData.operator_name,
+                    counterparty_name: fleetFormData.counterparty_name,
+                    km_reading: Number(fleetFormData.km_reading),
+                    log_date: fleetFormData.log_date,
+                    log_time: fleetFormData.log_time,
+                    images_urls: pgArray // صيفطنا الـ Postgres Array ديريكت
+                };
+
+                const { error } = await supabase.from('fleet_operations').insert([payload]);
+                if (error) throw error;
+                alert('✅ تم تسجيل خروج السيارة بنجاح (السطر مفتوح الآن)');
+
             } else {
-                payload.status = 'closed';
-                payload.km_reading_return = Number(fleetFormData.km_reading);
-                payload.log_date_return = fleetFormData.log_date;
-                payload.log_time_return = fleetFormData.log_time;
-                payload.fuel_expenses = Number(fleetFormData.fuel_expenses);
+                // 📤 وضع الإرجاع: UPDATE ف نفس السطر
+                const { data: openRecord, error: findError } = await supabase
+                    .from('fleet_operations')
+                    .select('*')
+                    .eq('vehicle_name', fleetFormData.vehicle_name)
+                    .eq('status', 'open')
+                    .order('created_at', { ascending: false })
+                    .maybeSingle();
+
+                if (findError) throw findError;
+
+                if (!openRecord) {
+                    alert(`⚠️ هاد السيارة (${fleetFormData.vehicle_name}) ديجا كاين ليها إرجاع أو ما خرجاش أصلاً ف السيستم!`);
+                    setLoading(false);
+                    return;
+                }
+
+                // دمج الصور القديمة والجديدة
+                let finalImages: string[] = [];
+                if (openRecord.images_urls && Array.isArray(openRecord.images_urls)) {
+                    finalImages = [...openRecord.images_urls, ...uploadedUrls];
+                } else {
+                    finalImages = uploadedUrls;
+                }
+
+                // 🌟 تحويل المصفوفة المدمجة كاملة لصيغة Postgres الحقيقية
+                const pgArrayReturn = finalImages.length > 0 ? `{${finalImages.map(u => `"${u}"`).join(',')}}` : openRecord.images_urls;
+
+                const startKm = Number(openRecord.km_reading) || 0;
+                const endKm = Number(fleetFormData.km_reading);
+                const distance = endKm - startKm >= 0 ? endKm - startKm : 0;
+
+                const { error: updateError } = await supabase
+                    .from('fleet_operations')
+                    .update({
+                        status: 'closed',
+                        km_reading_return: endKm,
+                        log_date_return: fleetFormData.log_date,
+                        log_time_return: fleetFormData.log_time,
+                        fuel_expenses: Number(fleetFormData.fuel_expenses),
+                        distance_traveled: distance,
+                        images_urls: pgArrayReturn
+                    })
+                    .eq('id', openRecord.id);
+
+                if (updateError) throw updateError;
+                alert('✅ تم تسجيل إرجاع السيارة بنجاح ف نفس السطر وتقفل الطلب!');
             }
 
-            const { error } = await supabase
-                .from('fleet_operations')
-                .insert([payload]);
-
-            if (error) throw error;
-
-            alert('✅ تم تسجيل العملية بنجاح وستظهر في الجدول التحت');
             setIsFleetModalOpen(false);
             setFleetImages([]);
             setFleetFormData({
                 action_type: 'handover',
                 vehicle_name: 'Clio 4',
+                operator_name: '',
                 counterparty_name: '',
                 log_date: new Date().toISOString().split('T')[0],
                 log_time: new Date().toTimeString().split(' ')[0].slice(0, 5),
                 km_reading: '',
                 fuel_expenses: ''
             });
-            fetchRecords(vehicleFilter); // كيريفريشي الطابلو ف البلاصة باش تطلع العملية الجديدة
+            fetchRecords(vehicleFilter); 
 
         } catch (error: any) {
             alert('❌ خطأ في الحفظ: ' + error.message);
@@ -1067,7 +1112,6 @@ function ManagerFleetOperations() {
 
     const handleEditFleet = (row: any) => {
         console.log("📝 Editing row:", row);
-        alert('خاصية التعديل السريع قيد التطوير.');
     };
 
     const getDriverBadge = () => {
@@ -1092,12 +1136,11 @@ function ManagerFleetOperations() {
                     </span>
                 </div>
 
-                {/* 🌟 3️⃣ تعديل الهيدر: زيادة بوطون "تسجيل عملية" مع السلكت د الفلتر */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
                     <button
                         type="button"
                         onClick={() => setIsFleetModalOpen(true)}
-                        className="flex items-center justify-center gap-1.5 text-white bg-slate-900 hover:bg-slate-800 px-4 py-2.5 rounded-xl text-xs font-black transition-colors shadow-sm whitespace-nowrap"
+                        className="flex items-center justify-center gap-1.5 text-white bg-slate-900 hover:bg-black px-4 py-2.5 rounded-xl text-xs font-black transition-colors shadow-sm whitespace-nowrap border-none cursor-pointer"
                     >
                         <span>📋 تسجيل عملية جديدة</span>
                     </button>
@@ -1147,7 +1190,7 @@ function ManagerFleetOperations() {
                 </table>
             </div>
 
-            {/* 🌟 4️⃣ زيادة الفورم د المانجر هنا لتحت وسط نفس المكون كيتفتح بـ Modal مأمن وزوين */}
+            {/* مـودال الفورم المنبثق */}
             {isFleetModalOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl w-full max-w-lg border border-slate-200 text-right">
@@ -1156,7 +1199,7 @@ function ManagerFleetOperations() {
                             <button
                                 type="button"
                                 onClick={() => { setIsFleetModalOpen(false); setFleetImages([]); }}
-                                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500 font-bold"
+                                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-500 font-bold border-none cursor-pointer"
                             >
                                 ✕
                             </button>
@@ -1167,14 +1210,14 @@ function ManagerFleetOperations() {
                                 <button
                                     type="button"
                                     onClick={() => { setFleetFormData({ ...fleetFormData, action_type: 'handover' }); setFleetImages([]); }}
-                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all border-none cursor-pointer ${fleetFormData.action_type === 'handover' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
                                 >
                                     📥 تسليم (خروج)
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => { setFleetFormData({ ...fleetFormData, action_type: 'return' }); setFleetImages([]); }}
-                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
+                                    className={`flex-1 py-2 text-xs font-black rounded-lg transition-all border-none cursor-pointer ${fleetFormData.action_type === 'return' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
                                 >
                                     📤 إرجاع (دخول)
                                 </button>
@@ -1183,7 +1226,7 @@ function ManagerFleetOperations() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">السيارة</label>
-                                    <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300">
+                                    <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer">
                                         <option value="Clio 4">Clio 4</option>
                                         <option value="Peugeot 208">Peugeot 208</option>
                                         <option value="Opel Corsa">Opel Corsa</option>
@@ -1192,19 +1235,29 @@ function ManagerFleetOperations() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الطرف المستلم للسيارة</label>
-                                    <input type="text" required value={fleetFormData.counterparty_name} onChange={(e) => setFleetFormData({ ...fleetFormData, counterparty_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="مثال: حمزة، يوسف..." />
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                                        {fleetFormData.action_type === 'handover' ? '👤 المسؤول عن التسليم (مِن)' : '👤 السائق لي جاب السيارة (مِن)'}
+                                    </label>
+                                    <input type="text" required value={fleetFormData.operator_name} onChange={(e) => setFleetFormData({ ...fleetFormData, operator_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="مثال: يونس، حمزة، بلال..." />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                                        {fleetFormData.action_type === 'handover' ? '👤 السائق لي شد السيارة (إلى)' : '👤 المسؤول لي استلم السيارة (إلى)'}
+                                    </label>
+                                    <input type="text" required value={fleetFormData.counterparty_name} onChange={(e) => setFleetFormData({ ...fleetFormData, counterparty_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="مثال: بلال، يونس..." />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">التاريخ</label>
-                                    <input type="date" required value={fleetFormData.log_date} onChange={(e) => setFleetFormData({ ...fleetFormData, log_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                    <input type="date" required value={fleetFormData.log_date} onChange={(e) => setFleetFormData({ ...fleetFormData, log_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الوقت</label>
-                                    <input type="time" required value={fleetFormData.log_time} onChange={(e) => setFleetFormData({ ...fleetFormData, log_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" />
+                                    <input type="time" required value={fleetFormData.log_time} onChange={(e) => setFleetFormData({ ...fleetFormData, log_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer" />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">الكيلومتراج (KM)</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+                                        {fleetFormData.action_type === 'handover' ? 'الكيلومتراج عند الخروج (KM)' : 'الكيلومتراج عند الرجوع (KM)'}
+                                    </label>
                                     <input type="number" required value={fleetFormData.km_reading} onChange={(e) => setFleetFormData({ ...fleetFormData, km_reading: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300" placeholder="0" />
                                 </div>
 
@@ -1222,7 +1275,7 @@ function ManagerFleetOperations() {
                                         multiple
                                         accept="image/*"
                                         onChange={(e) => { if (e.target.files) setFleetImages(Array.from(e.target.files)); }}
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-200"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-200 cursor-pointer"
                                     />
                                     {fleetImages.length > 0 && (
                                         <p className="text-[10px] font-black text-emerald-600 mt-1">📊 تم اختيار {fleetImages.length} صور جاهزة للرفع.</p>
@@ -1230,7 +1283,7 @@ function ManagerFleetOperations() {
                                 </div>
                             </div>
 
-                            <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-black mt-2 hover:bg-slate-800 transition-colors disabled:opacity-50">
+                            <button type="submit" disabled={loading} className="w-full bg-slate-900 text-white rounded-xl py-3.5 text-sm font-black mt-2 hover:bg-slate-800 transition-colors disabled:opacity-50 border-none cursor-pointer">
                                 {loading ? 'جاري الحفظ والرفع...' : '✅ تأكيد العملية وإدراجها'}
                             </button>
                         </form>
@@ -1241,7 +1294,7 @@ function ManagerFleetOperations() {
     );
 }
 
-// 🌟 5️⃣ المكون الفرعي FleetRow كيبقى كيف ما هو تحت منو مباشرة ف نفس الملف
+// ── المكون الفرعي المصحح والمطور للفصل الكامل بين خانات صور التسليم والإرجاع ──
 function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void; onDelete?: (id: string) => void; onEdit?: (row: any) => void }) {
     const [maxVitesse, setMaxVitesse] = useState(row.max_vitesse || '');
     const [managerNotes, setManagerNotes] = useState(row.manager_notes || '');
@@ -1249,23 +1302,19 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
 
     const isClosed = row.status === 'closed';
 
-    let images: any[] = [];
-    if (row.images_urls) {
-        if (typeof row.images_urls === 'string') {
-            try {
-                const firstParse = JSON.parse(row.images_urls);
-                if (Array.isArray(firstParse)) images = firstParse;
-                else images = [row.images_urls];
-            } catch (e) { images = [row.images_urls]; }
-        } else if (Array.isArray(row.images_urls)) {
-            images = row.images_urls;
-        }
-    }
+    // 🌟 تأكيد استلام المصفوفة
+    const images: string[] = Array.isArray(row.images_urls) ? row.images_urls : [];
 
     const handleConfirmSave = () => {
         onSave(row.id, maxVitesse, managerNotes);
         setIsEditable(false);
     };
+
+    // 🌟 تصفية صور التسليم الذكية
+    const handoverImages = images.filter(img => img && (img.includes('||handover') || !img.includes('||')));
+    
+    // 🌟 تصفية صور الإرجاع الذكية
+    const returnImages = images.filter(img => img && img.includes('||return'));
 
     return (
         <tr className={`hover:bg-slate-50/60 transition-colors align-top border-b border-slate-100 ${isEditable ? 'bg-amber-50/20' : ''}`}>
@@ -1308,53 +1357,47 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                 ) : <span className="text-slate-300">---</span>}
             </td>
 
-            <td className="p-3 border-b text-center align-middle">
-                <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
-                    {images.map((imgStr: any, i: number) => {
-                        try {
-                            const parsed = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
-                            if (parsed && parsed.type === 'handover') {
-                                return (
-                                    <img key={i} src={parsed.url} alt="تسليم" className="w-10 h-10 object-cover rounded-xl border-2 border-emerald-100 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(parsed.url, '_blank')} />
-                                );
-                            }
-                        } catch (e) {
-                            if (typeof imgStr === 'string' && !imgStr.includes('"type"')) {
-                                return (
-                                    <img key={i} src={imgStr} alt="قديم" className="w-10 h-10 object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(imgStr, '_blank')} />
-                                );
-                            }
-                        }
-                        return null;
-                    }).filter(Boolean)}
-                    {images.filter(imgStr => {
-                        try {
-                            const p = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
-                            return p.type === 'handover' || (typeof imgStr === 'string' && !imgStr.includes('"type"'));
-                        } catch { return true; }
-                    }).length === 0 && <span className="text-slate-300 font-bold col-span-2 text-center">—</span>}
+            {/* 📥 خانة عرض صور التسليم المعزولة */}
+            <td className="p-3 text-center align-middle">
+                <div className="flex justify-center items-center gap-1.5 min-w-[90px]">
+                    {handoverImages.length > 0 ? (
+                        handoverImages.map((imgStr, i) => {
+                            const url = imgStr.split('||')[0]; 
+                            return (
+                                <img 
+                                    key={i} 
+                                    src={url} 
+                                    alt="تسليم" 
+                                    className="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" 
+                                    onClick={() => window.open(url, '_blank')} 
+                                />
+                            );
+                        })
+                    ) : (
+                        <span className="text-slate-300 font-bold select-none">—</span>
+                    )}
                 </div>
             </td>
 
-            <td className="p-3 border-b text-center align-middle">
-                <div className="grid grid-cols-2 gap-1 mx-auto w-[84px]">
-                    {images.map((imgStr: any, i: number) => {
-                        try {
-                            const parsed = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
-                            if (parsed && parsed.type === 'return') {
-                                return (
-                                    <img key={i} src={parsed.url} alt="إرجاع" className="w-10 h-10 object-cover rounded-xl border-2 border-blue-100 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" onClick={() => window.open(parsed.url, '_blank')} />
-                                );
-                            }
-                        } catch (e) { return null; }
-                        return null;
-                    }).filter(Boolean)}
-                    {images.filter(imgStr => {
-                        try {
-                            const p = typeof imgStr === 'string' ? JSON.parse(imgStr) : imgStr;
-                            return p.type === 'return';
-                        } catch { return false; }
-                    }).length === 0 && <span className="text-slate-300 font-bold col-span-2 text-center">—</span>}
+            {/* 📤 خانة عرض صور الإرجاع المعزولة */}
+            <td className="p-3 text-center align-middle">
+                <div className="flex justify-center items-center gap-1.5 min-w-[90px]">
+                    {returnImages.length > 0 ? (
+                        returnImages.map((imgStr, i) => {
+                            const url = imgStr.split('||')[0]; 
+                            return (
+                                <img 
+                                    key={i} 
+                                    src={url} 
+                                    alt="إرجاع" 
+                                    className="w-9 h-9 min-w-[36px] min-h-[36px] aspect-square object-cover rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:scale-110 transition-transform shrink-0" 
+                                    onClick={() => window.open(url, '_blank')} 
+                                />
+                            );
+                        })
+                    ) : (
+                        <span className="text-slate-300 font-bold select-none">—</span>
+                    )}
                 </div>
             </td>
 
@@ -1385,7 +1428,7 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
                         <button
                             type="button"
                             onClick={handleConfirmSave}
-                            className="w-full px-2 py-1 text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 rounded-md transition-colors shadow-sm"
+                            className="w-full px-2 py-1 text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 rounded-md transition-colors shadow-sm border-none cursor-pointer"
                         >
                             💾 حفظ التغييرات
                         </button>
