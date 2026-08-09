@@ -1,48 +1,68 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Notification } from '@/components/NotificationDropdown';
 
 export function useNotifications(agencyName: string) {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState<number>(0);
+    
+    // 🌟 1️⃣ ستيت التاريخ المختار للتصفية
+    const [selectedDate, setSelectedDate] = useState<string>('');
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async (dateFilter?: string) => {
         if (!agencyName) return;
 
-        // 1. جلب الإشعارات العادية د الوكالة الحالية (مع استبعاد ميساجات السيستيم الأوتوماتيكية)
-        const { data, error } = await supabase
+        const targetDate = dateFilter !== undefined ? dateFilter : selectedDate;
+
+        // 🌟 بناء الاستعلامات الديناميكية
+        let regularQuery = supabase
             .from('notifications')
             .select('*')
             .eq('agency', agencyName)
             .not('message', 'ilike', '%بمبلغ%')
-            .order('created_at', { ascending: false })
-            .limit(15);
+            .order('created_at', { ascending: false });
 
-        // 2. 🎯 جلب إشعارات أسطول السيارات الخاصة بالوكالة (حيدنا شرط is_read باش يبقاو باينين ف الجرس وخا مقروءين!)
-        const { data: fleetData } = await supabase
+        let fleetQuery = supabase
             .from('fleet_operations_notifications')
             .select('*')
             .eq('agency', agencyName)
-            .order('created_at', { ascending: false })
-            .limit(5);
+            .order('created_at', { ascending: false });
 
-        // 🔀 وسم الإشعارات لتمييزها بدقة داخل الـ Dropdown ومنع تداخل الـ IDs
-        const normalizedRegular = (data || []).map(n => ({ ...n, isFleet: false }));
-        const normalizedFleet = (fleetData || []).map(n => ({ ...n, isFleet: true }));
+        // 🌟 إلا المانجر اختار تاريخ، كيجيب كاع الإشعارات د داك النهار كامل بدون limit!
+        if (targetDate) {
+            const startOfDay = `${targetDate}T00:00:00`;
+            const endOfDay = `${targetDate}T23:59:59`;
 
-        const combined = [...normalizedRegular, ...normalizedFleet]
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 15);
+            regularQuery = regularQuery.gte('created_at', startOfDay).lte('created_at', endOfDay);
+            fleetQuery = fleetQuery.gte('created_at', startOfDay).lte('created_at', endOfDay);
+        } else {
+            // ف الحالة العادية بدون تاريخ كيحافظ على الحدود السابقة
+            regularQuery = regularQuery.limit(15);
+            fleetQuery = fleetQuery.limit(5);
+        }
 
-        if (error) {
-            console.error("❌ [FETCH ERROR]:", error.message);
+        const [regularRes, fleetRes] = await Promise.all([regularQuery, fleetQuery]);
+
+        const normalizedRegular = (regularRes.data || []).map(n => ({ ...n, isFleet: false }));
+        const normalizedFleet = (fleetRes.data || []).map(n => ({ ...n, isFleet: true }));
+
+        let combined = [...normalizedRegular, ...normalizedFleet]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        // إلا ما كاينش تاريخ محدد كنحدوها ف 15، ولكن مع التاريخ كيعرض كااااع إشعارات داك النهار
+        if (!targetDate) {
+            combined = combined.slice(0, 15);
+        }
+
+        if (regularRes.error) {
+            console.error("❌ [FETCH ERROR]:", regularRes.error.message);
             return;
         }
 
         setNotifications(combined);
 
-        // 3. 🚀 حساب الـ Counter المجموع (هنا الـ العداد كيحسب غي لي مزال ما تقرأو بـ الصح Rgh)
+        // 3. حساب الـ Counter المجموع
         const { count: realUnreadCount, error: countError } = await supabase
             .from('notifications')
             .select('*', { count: 'exact', head: true })
@@ -54,13 +74,18 @@ export function useNotifications(agencyName: string) {
             .from('fleet_operations_notifications')
             .select('*', { count: 'exact', head: true })
             .eq('agency', agencyName)
-            .eq('is_read', false); // العداد كينقص عادي ملي كتبرك عليها حيت كتولي true ف الداتابيز
+            .eq('is_read', false);
 
         if (!countError) {
             const totalUnread = (realUnreadCount || 0) + (fleetUnreadCount || 0);
             setUnreadCount(totalUnread);
-            console.log("📊 Counter Updated Locally:", totalUnread);
         }
+    }, [agencyName, selectedDate]);
+
+    // 🌟 دالة لتغيير التاريخ وتحديث البيانات ف البلاصة
+    const handleDateChange = (date: string) => {
+        setSelectedDate(date);
+        fetchNotifications(date);
     };
 
     const markAllAsRead = async () => {
@@ -102,7 +127,6 @@ export function useNotifications(agencyName: string) {
         if (!agencyName) return;
         fetchNotifications();
 
-        // 🛰️ الـ Real-time العالمي: كيتصنت لجميع تحديثات الجداول ف البلاصة
         const channel = supabase.channel(`global-notifs-${agencyName}`)
             .on('postgres_changes',
                 {
@@ -130,7 +154,16 @@ export function useNotifications(agencyName: string) {
             ).subscribe();
 
         return () => { supabase.removeChannel(channel); };
-    }, [agencyName]);
+    }, [agencyName, fetchNotifications]);
 
-    return { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification, fetchNotifications };
+    return { 
+        notifications, 
+        unreadCount, 
+        selectedDate,          // 🌟 جديد
+        handleDateChange,       // 🌟 جديد
+        markAllAsRead, 
+        markSingleAsRead, 
+        deleteNotification, 
+        fetchNotifications 
+    };
 }

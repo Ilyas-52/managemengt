@@ -1,5 +1,5 @@
 'use client';
-import { Gauge, Fuel, Flag, FileText } from 'lucide-react';
+import { Gauge, Fuel, Flag, FileText, CalendarDays } from 'lucide-react';
 
 import { Agency } from '@/types/dashboard';
 
@@ -7,11 +7,17 @@ interface Props {
     mileage_start: number;
     mileage_end: number;
     fuel_expense: number;
+    previous_mileage_end?: number; // 🌟 عداد النهاية ديال الأسبوع الماضي
     selectedAgency?: Agency | null;
     instructorName?: string;
 }
 
-export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expense, selectedAgency, instructorName }: Props) {
+export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expense, previous_mileage_end = 0, selectedAgency, instructorName }: Props) {
+
+    // 🚀 حساب كيلومتراج الـ Weekend أوتوماتيكياً (عداد البداية الجديد - عداد النهاية الماضي)
+    const weekendKm = (mileage_start > previous_mileage_end && previous_mileage_end > 0) 
+        ? (mileage_start - previous_mileage_end) 
+        : 0;
 
     // 🚀 مسمار الحل: دالة كتعرف الطوموبيل أوتوماتيك على حساب الوكالة المعزولة بلا تروين
     const getVehicleName = () => {
@@ -26,7 +32,6 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
         const totalDistance = (mileage_end > mileage_start) ? (mileage_end - mileage_start) : 0;
         const currentVehicle = getVehicleName();
 
-        // ✅ المسمار: كرينا Iframe مخفي بلاصة window.open لضمان الطبع ف التلفونات والـ PC
         const iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
@@ -56,7 +61,6 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
             <div class="header">
                 <h1>Auto Ecole ${selectedAgency?.name || 'Boudinar'}</h1>
                 <p>تقرير حركة السيارة واستهلاك الوقود الاسبوعي</p>
-                <!-- 🚀 مسمار التحديث الديناميكي العكسي ف الـ PDF نيشان -->
                 <span style="font-size: 20px; font-weight: 900; color: #04b55f; border: 2px solid #000; padding: 4px 15px; border-radius: 5px; display: inline-block; margin-top: 10px;">
                     ${currentVehicle}
                 </span>
@@ -64,16 +68,24 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
 
             <table>
                 <tr>
-                    <th>عداد البداية (KM)</th>
+                    <th>عداد النهاية السابق (الجمعة)</th>
+                    <td class="highlight">${previous_mileage_end || 0}</td>
+                </tr>
+                <tr>
+                    <th>عداد البداية الجديد (الاثنين)</th>
                     <td class="highlight">${mileage_start || 0}</td>
                 </tr>
                 <tr>
-                    <th>عداد النهاية (KM)</th>
+                    <th>عداد النهاية الحالي (KM)</th>
                     <td class="highlight">${mileage_end || 0}</td>
                 </tr>
                 <tr>
-                    <th>المسافة المقطوعة</th>
+                    <th>المسافة المقطوعة فـ الأسبوع</th>
                     <td class="highlight" style="color: #04b55f;">${totalDistance} KM</td>
+                </tr>
+                <tr>
+                    <th>مسافة المقطوعة فـ Weekend</th>
+                    <td class="highlight" style="color: #04b55f;">${weekendKm} KM</td>
                 </tr>
                 <tr>
                     <th>مصاريف الوقود (DH)</th>
@@ -142,12 +154,24 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
                 </div>
             </div>
 
-            {/* 4. إجمالي المسافة (خلاصة بسيطة) */}
+            {/* 4. إجمالي المسافة المقطوعة فـ الأسبوع */}
             <div className="pt-2">
                 <div className="w-full h-12 bg-slate-50 rounded-2xl flex items-center justify-between px-8 opacity-60">
-                    <span className="text-[9px] text-slate-500 font-black">المسافة المقطوعة:</span>
+                    <span className="text-[9px] text-slate-500 font-black">المسافة المقطوعة فـ الأسبوع:</span>
                     <span className="text-lg text-slate-900 font-black">
                         {(mileage_end > mileage_start) ? (mileage_end - mileage_start) : 0} KM
+                    </span>
+                </div>
+            </div>
+
+            {/* 🌟 5. المسافة المقطوعة فـ الـ Weekend (موافق لـ الديزاين السابق وبنفس الألوان) */}
+            <div>
+                <div className="w-full h-12 bg-slate-50 rounded-2xl flex items-center justify-between px-8 opacity-60">
+                    <span className="text-[9px] text-slate-500 font-black flex items-center gap-2">
+                        <CalendarDays size={12} /> المسافة المقطوعة فـ الـ Weekend:
+                    </span>
+                    <span className="text-lg text-slate-900 font-black">
+                        {weekendKm} KM
                     </span>
                 </div>
             </div>

@@ -127,10 +127,19 @@ export default function ManagerTerminal() {
         }
     };
 
-    const { notifications, unreadCount, markAllAsRead, markSingleAsRead, deleteNotification } = useNotifications(selectedAgency?.name || 'Boudinar');
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    const { 
+    notifications, 
+    unreadCount, 
+    selectedDate: notifSelectedDate, 
+    handleDateChange, 
+    markAllAsRead, 
+    markSingleAsRead, 
+    deleteNotification 
+} = useNotifications(selectedAgency?.name || 'Boudinar');
+
+useEffect(() => {
+    setIsMounted(true);
+}, []);
 
     const fetchData = async () => {
         if (!selectedAgency?.id) return; // الحصار الذكي المصلح لعدم الكراش
@@ -618,8 +627,17 @@ export default function ManagerTerminal() {
                             </div>
                         </div>
                         <div className="flex-shrink-0">
-                            <NotificationDropdown notifications={notifications} unreadCount={unreadCount} onMarkAllRead={markAllAsRead} onMarkSingleRead={markSingleAsRead} onDeleteNotification={deleteNotification} onNavigate={fetchData} />
-                        </div>
+    <NotificationDropdown 
+        notifications={notifications} 
+        unreadCount={unreadCount} 
+        selectedDate={notifSelectedDate} 
+        onDateChange={handleDateChange} 
+        onMarkAllRead={markAllAsRead} 
+        onMarkSingleRead={markSingleAsRead} 
+        onDeleteNotification={deleteNotification} 
+        onNavigate={fetchData} 
+    />
+</div>
                     </div>
                 </header>
 
@@ -994,117 +1012,133 @@ function ManagerFleetOperations() {
         }
     };
 
-    // 🚀 دالة الحفظ المصلحة بالكامل بـ صيغة Postgres Array المضمونة لمنع الـ null
+    // 📸 دالة رفع الصور المخصصة والمضمونة بحال التطبيقي
+    const uploadImages = async (files: File[]) => {
+        const urls: string[] = [];
+        if (!files || files.length === 0) return urls;
+
+        for (const file of files) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `fleet/${fileName}`;
+            const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
+
+            if (!uploadError) {
+                const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
+                urls.push(urlData.publicUrl);
+            }
+        }
+        return urls;
+    };
+
+    // 🚀 دالة الحفظ الموحدة والمطابقة لـ التطبيقي 100%
     const handleFleetSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            let uploadedUrls: string[] = []; 
-
-            // رفع الصور لـ Storage
-            if (fleetImages.length > 0) {
-                for (const file of fleetImages) {
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Math.random()}.${fileExt}`;
-                    const filePath = `fleet/${fileName}`;
-                    const { error: uploadError } = await supabase.storage.from('images').upload(filePath, file);
-                    
-                    if (!uploadError) {
-                        const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
-                        // ندمج الرابط مع النوع
-                        uploadedUrls.push(`${urlData.publicUrl}||${fleetFormData.action_type}`);
-                    }
-                }
-            }
-
             if (fleetFormData.action_type === 'handover') {
-                // 📥 وضع التسليم: INSERT
-                // 🌟 تحويل المصفوفة لصيغة Postgres الحقيقية لعمود text[]: {"url1","url2"}
-                const pgArray = uploadedUrls.length > 0 ? `{${uploadedUrls.map(u => `"${u}"`).join(',')}}` : null;
+                // 📸 1. رفع صور التسليم أولاً وجلب الروابط
+                const uploadedHandoverUrls = await uploadImages(fleetImages);
 
-                const payload = {
-                    action_type: 'handover',
-                    status: 'open',
+                // 🧱 2. تحويل الروابط لـ صيغة JSON النصية المفرزة
+                const handoverMapped = uploadedHandoverUrls.map(url => JSON.stringify({ type: 'handover', url: url }));
+
+                // 📥 3. إدخال سطر جديد مفتوح مع صور التسليم
+                const { error } = await supabase.from('fleet_operations').insert([{
                     vehicle_name: fleetFormData.vehicle_name,
-                    operator_name: fleetFormData.operator_name,
+                    action_type: 'handover',
+                    operator_name: fleetFormData.operator_name || 'يونس (المدير)',
                     counterparty_name: fleetFormData.counterparty_name,
-                    km_reading: Number(fleetFormData.km_reading),
                     log_date: fleetFormData.log_date,
                     log_time: fleetFormData.log_time,
-                    images_urls: pgArray // صيفطنا الـ Postgres Array ديريكت
-                };
-
-                const { error } = await supabase.from('fleet_operations').insert([payload]);
+                    km_reading: Number(fleetFormData.km_reading),
+                    status: 'open',
+                    images_urls: handoverMapped
+                }]);
                 if (error) throw error;
-                alert('✅ تم تسجيل خروج السيارة بنجاح (السطر مفتوح الآن)');
 
             } else {
-                // 📤 وضع الإرجاع: UPDATE ف نفس السطر
-                const { data: openRecord, error: findError } = await supabase
-                    .from('fleet_operations')
+                // 🔍 1. جلب السطر المفتوح باش نقرأو الصور د التسليم لي تسجلو ف اللول
+                const { data: openRow, error: fetchErr } = await supabase.from('fleet_operations')
                     .select('*')
                     .eq('vehicle_name', fleetFormData.vehicle_name)
                     .eq('status', 'open')
                     .order('created_at', { ascending: false })
-                    .maybeSingle();
+                    .limit(1)
+                    .single();
 
-                if (findError) throw findError;
-
-                if (!openRecord) {
-                    alert(`⚠️ هاد السيارة (${fleetFormData.vehicle_name}) ديجا كاين ليها إرجاع أو ما خرجاش أصلاً ف السيستم!`);
-                    setLoading(false);
-                    return;
+                if (fetchErr || !openRow) {
+                    throw new Error(`لا توجد عملية تسليم مفتوحة للسيارة (${fleetFormData.vehicle_name}) لتسجيل إرجاعها.`);
                 }
 
-                // دمج الصور القديمة والجديدة
-                let finalImages: string[] = [];
-                if (openRecord.images_urls && Array.isArray(openRecord.images_urls)) {
-                    finalImages = [...openRecord.images_urls, ...uploadedUrls];
-                } else {
-                    finalImages = uploadedUrls;
-                }
+                // 📸 2. رفع صور الإرجاع دابا
+                const uploadedReturnUrls = await uploadImages(fleetImages);
 
-                // 🌟 تحويل المصفوفة المدمجة كاملة لصيغة Postgres الحقيقية
-                const pgArrayReturn = finalImages.length > 0 ? `{${finalImages.map(u => `"${u}"`).join(',')}}` : openRecord.images_urls;
+                // 🧱 3. تحويل روابط الإرجاع لـ صيغة JSON النصية
+                const returnMapped = uploadedReturnUrls.map(url => JSON.stringify({ type: 'return', url: url }));
 
-                const startKm = Number(openRecord.km_reading) || 0;
-                const endKm = Number(fleetFormData.km_reading);
-                const distance = endKm - startKm >= 0 ? endKm - startKm : 0;
+                // 🔀 4. دمج صور التسليم القدام مع صور الإرجاع الجداد ف مصفوفة واحدة
+                const existingImages = openRow.images_urls || [];
+                const finalCombinedImages = [...existingImages, ...returnMapped];
 
-                const { error: updateError } = await supabase
-                    .from('fleet_operations')
+                // 📏 5. حساب المسافة المقطوعة أوتوماتيكياً
+                const distance = Number(fleetFormData.km_reading) - Number(openRow.km_reading);
+
+                // 📥 6. تحديث السطر وإغلاقه
+                const { error: updateErr } = await supabase.from('fleet_operations')
                     .update({
-                        status: 'closed',
-                        km_reading_return: endKm,
                         log_date_return: fleetFormData.log_date,
                         log_time_return: fleetFormData.log_time,
-                        fuel_expenses: Number(fleetFormData.fuel_expenses),
-                        distance_traveled: distance,
-                        images_urls: pgArrayReturn
+                        km_reading_return: Number(fleetFormData.km_reading),
+                        fuel_expenses: Number(fleetFormData.fuel_expenses) || 0,
+                        images_urls: finalCombinedImages,
+                        distance_traveled: distance >= 0 ? distance : 0,
+                        status: 'closed'
                     })
-                    .eq('id', openRecord.id);
+                    .eq('id', openRow.id);
 
-                if (updateError) throw updateError;
-                alert('✅ تم تسجيل إرجاع السيارة بنجاح ف نفس السطر وتقفل الطلب!');
+                if (updateErr) throw updateErr;
             }
 
+            // 🔔 7. إرسال الإشعار لـ Supabase
+            let agencyVal = 'Boudinar';
+            if (fleetFormData.vehicle_name.includes('Clio')) agencyVal = 'Krona';
+            else if (fleetFormData.vehicle_name.includes('Opel')) agencyVal = 'Tazaghine';
+            else if (fleetFormData.vehicle_name.includes('Dacia')) agencyVal = 'Azghar';
+            else if (fleetFormData.vehicle_name.includes('Peugeot')) agencyVal = 'Boudinar';
+            else if (fleetFormData.vehicle_name.includes('Mercedes 190')) agencyVal = 'Boudinar';
+
+            const notifMsg = fleetFormData.action_type === 'handover'
+                ? `📥 تم تسليم سيارة: ${fleetFormData.vehicle_name}`
+                : `📤 تم إرجاع سيارة: ${fleetFormData.vehicle_name}`;
+
+            await supabase.from('fleet_operations_notifications').insert([{
+                agency: agencyVal,
+                vehicle_name: fleetFormData.vehicle_name,
+                message: notifMsg,
+                is_read: false
+            }]);
+
+            alert('✅ تم تسجيل العملية بنجاح');
             setIsFleetModalOpen(false);
-            setFleetImages([]);
+
+            // إعادة تعيين الفورم وتحديث الطابلو
             setFleetFormData({
                 action_type: 'handover',
-                vehicle_name: 'Clio 4',
+                vehicle_name: fleetFormData.vehicle_name,
                 operator_name: '',
                 counterparty_name: '',
                 log_date: new Date().toISOString().split('T')[0],
-                log_time: new Date().toTimeString().split(' ')[0].slice(0, 5),
+                log_time: new Date().toTimeString().split(' ')[0].substring(0, 5),
                 km_reading: '',
-                fuel_expenses: ''
+                fuel_expenses: '',
             });
-            fetchRecords(vehicleFilter); 
+            setFleetImages([]);
+            fetchRecords(vehicleFilter);
 
         } catch (error: any) {
-            alert('❌ خطأ في الحفظ: ' + error.message);
+            alert('❌ خطأ: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -1115,10 +1149,10 @@ function ManagerFleetOperations() {
     };
 
     const getDriverBadge = () => {
-        if (vehicleFilter === 'Clio 4') return "👤 السائق: بلال • وكالة كرونا";
-        if (vehicleFilter === 'Peugeot 208') return "👤 السائق: حمزة • وكالة بودينار";
-        if (vehicleFilter === 'Opel Corsa') return "👤    السائق: بلقاسمي  • وكالة تازغين";
-        if (vehicleFilter === 'Dacia Logan') return "👤   السائق: إسماعيل  • وكالة ازغار";
+        if (vehicleFilter === 'Dacia') return "👤 السائق: بلال • وكالة كرونا";
+        if (vehicleFilter === 'Peugeot') return "👤 السائق: حمزة • وكالة بودينار";
+        if (vehicleFilter === 'Opel') return "👤    السائق: بلقاسمي  • وكالة تازغين";
+        if (vehicleFilter === 'Clio') return "👤   السائق: إسماعيل  • وكالة ازغار";
         if (vehicleFilter === 'Mercedes 190') return "👤 السائق: يونس (المدير)   ";
         return "🗂️ سيارة الأسطول الحالية";
     };
@@ -1152,11 +1186,11 @@ function ManagerFleetOperations() {
                             onChange={(e) => handleVehicleChange(e.target.value)}
                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer"
                         >
-                            <option value="Clio 4">Clio 4</option>
-                            <option value="Peugeot 208">Peugeot 208</option>
-                            <option value="Opel Corsa">Opel Corsa</option>
-                            <option value="Dacia Logan">Dacia Logan</option>
-                            <option value="Mercedes 190">Mercedes 190 </option>
+                            <option value="Clio">Clio</option>
+                            <option value="Peugeot">Peugeot</option>
+                            <option value="Opel">Opel</option>
+                            <option value="Dacia">Dacia</option>
+                            <option value="Mercedes 190">Mercedes 190</option>
                         </select>
                     </div>
                 </div>
@@ -1227,10 +1261,10 @@ function ManagerFleetOperations() {
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">السيارة</label>
                                     <select required value={fleetFormData.vehicle_name} onChange={(e) => setFleetFormData({ ...fleetFormData, vehicle_name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 cursor-pointer">
-                                        <option value="Clio 4">Clio 4</option>
-                                        <option value="Peugeot 208">Peugeot 208</option>
-                                        <option value="Opel Corsa">Opel Corsa</option>
-                                        <option value="Dacia Logan">Dacia Logan</option>
+                                        <option value="Clio">Clio</option>
+                                        <option value="Peugeot">Peugeot</option>
+                                        <option value="Opel">Opel</option>
+                                        <option value="Dacia">Dacia</option>
                                         <option value="Mercedes 190">Mercedes 190</option>
                                     </select>
                                 </div>
@@ -1274,7 +1308,12 @@ function ManagerFleetOperations() {
                                         type="file"
                                         multiple
                                         accept="image/*"
-                                        onChange={(e) => { if (e.target.files) setFleetImages(Array.from(e.target.files)); }}
+                                        onChange={(e) => {
+                                            if (e.target.files) {
+                                                const newFiles = Array.from(e.target.files);
+                                                setFleetImages((prev) => [...prev, ...newFiles]);
+                                            }
+                                        }}
                                         className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-300 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-slate-200 cursor-pointer"
                                     />
                                     {fleetImages.length > 0 && (
@@ -1294,7 +1333,7 @@ function ManagerFleetOperations() {
     );
 }
 
-// ── المكون الفرعي المصحح والمطور للفصل الكامل بين خانات صور التسليم والإرجاع ──
+// ── المكون الفرعي المصحح 100% لعرض الصور بكل الصيغ وبعزل كامل بين التسليم والإرجاع ──
 function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: string, max_vitesse: string, manager_notes: string) => void; onDelete?: (id: string) => void; onEdit?: (row: any) => void }) {
     const [maxVitesse, setMaxVitesse] = useState(row.max_vitesse || '');
     const [managerNotes, setManagerNotes] = useState(row.manager_notes || '');
@@ -1302,19 +1341,74 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
 
     const isClosed = row.status === 'closed';
 
-    // 🌟 تأكيد استلام المصفوفة
-    const images: string[] = Array.isArray(row.images_urls) ? row.images_urls : [];
+    // 🌟 1️⃣ تحويل وتنظيف مصفوفة الصور بأمان كيقبل كاع الصيغ
+    let parsedImages: any[] = [];
+    
+    if (row.images_urls) {
+        if (Array.isArray(row.images_urls)) {
+            row.images_urls.forEach((item: any) => {
+                if (typeof item === 'string' && (item.startsWith('[') || item.startsWith('{'))) {
+                    try {
+                        const p = JSON.parse(item);
+                        if (Array.isArray(p)) parsedImages.push(...p);
+                        else parsedImages.push(p);
+                    } catch { parsedImages.push(item); }
+                } else {
+                    parsedImages.push(item);
+                }
+            });
+        } else if (typeof row.images_urls === 'string') {
+            try {
+                const p = JSON.parse(row.images_urls);
+                if (Array.isArray(p)) parsedImages.push(...p);
+                else parsedImages.push(p);
+            } catch {
+                parsedImages.push(row.images_urls);
+            }
+        }
+    }
 
     const handleConfirmSave = () => {
         onSave(row.id, maxVitesse, managerNotes);
         setIsEditable(false);
     };
 
-    // 🌟 تصفية صور التسليم الذكية
-    const handoverImages = images.filter(img => img && (img.includes('||handover') || !img.includes('||')));
-    
-    // 🌟 تصفية صور الإرجاع الذكية
-    const returnImages = images.filter(img => img && img.includes('||return'));
+    // 🌟 2️⃣ دالة استخراج الرابط من أي صيغة
+    const getImageUrl = (imgItem: any) => {
+        if (!imgItem) return '';
+        if (typeof imgItem === 'string') {
+            if (imgItem.includes('||')) return imgItem.split('||')[0];
+            return imgItem;
+        }
+        return imgItem.url || '';
+    };
+
+    // 🌟 3️⃣ تصفية صور التسليم (Handover)
+    const handoverImages = parsedImages.filter(img => {
+        if (!img) return false;
+        if (typeof img === 'string') {
+            if (img.includes('||return')) return false;
+            if (img.includes('||handover')) return true;
+            try {
+                const p = JSON.parse(img);
+                return p.type === 'handover' || !p.type;
+            } catch { return true; }
+        }
+        return img.type === 'handover' || !img.type;
+    });
+
+    // 🌟 4️⃣ تصفية صور الإرجاع (Return)
+    const returnImages = parsedImages.filter(img => {
+        if (!img) return false;
+        if (typeof img === 'string') {
+            if (img.includes('||return')) return true;
+            try {
+                const p = JSON.parse(img);
+                return p.type === 'return';
+            } catch { return false; }
+        }
+        return img.type === 'return';
+    });
 
     return (
         <tr className={`hover:bg-slate-50/60 transition-colors align-top border-b border-slate-100 ${isEditable ? 'bg-amber-50/20' : ''}`}>
@@ -1361,8 +1455,9 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
             <td className="p-3 text-center align-middle">
                 <div className="flex justify-center items-center gap-1.5 min-w-[90px]">
                     {handoverImages.length > 0 ? (
-                        handoverImages.map((imgStr, i) => {
-                            const url = imgStr.split('||')[0]; 
+                        handoverImages.map((img, i) => {
+                            const url = getImageUrl(img);
+                            if (!url) return null;
                             return (
                                 <img 
                                     key={i} 
@@ -1383,8 +1478,9 @@ function FleetRow({ row, onSave, onDelete, onEdit }: { row: any; onSave: (id: st
             <td className="p-3 text-center align-middle">
                 <div className="flex justify-center items-center gap-1.5 min-w-[90px]">
                     {returnImages.length > 0 ? (
-                        returnImages.map((imgStr, i) => {
-                            const url = imgStr.split('||')[0]; 
+                        returnImages.map((img, i) => {
+                            const url = getImageUrl(img);
+                            if (!url) return null;
                             return (
                                 <img 
                                     key={i} 

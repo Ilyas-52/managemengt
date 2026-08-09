@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, Calendar, RotateCcw } from 'lucide-react';
 
 export interface Notification {
     id: string;
@@ -17,13 +17,24 @@ export interface Notification {
 interface Props {
     notifications: Notification[];
     unreadCount: number;
+    selectedDate?: string;                                // 🌟 جديد
+    onDateChange?: (date: string) => void;               // 🌟 جديد
     onMarkAllRead: () => void;
     onMarkSingleRead: (id: string, isFleet?: boolean) => void;
     onDeleteNotification: (id: string, isFleet?: boolean) => void;
     onNavigate: (n: Notification) => void;
 }
 
-export default function NotificationDropdown({ notifications, unreadCount, onMarkAllRead, onMarkSingleRead, onDeleteNotification, onNavigate }: Props) {
+export default function NotificationDropdown({ 
+    notifications, 
+    unreadCount, 
+    selectedDate = '', 
+    onDateChange, 
+    onMarkAllRead, 
+    onMarkSingleRead, 
+    onDeleteNotification, 
+    onNavigate 
+}: Props) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -47,56 +58,78 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
             <AnimatePresence>
                 {isOpen && (
                     <>
-                        {/* 1️⃣ الـ Overlay: الضبابة (Z-Index قل من الصندوق بشوية) */}
+                        {/* Overlay */}
                         <div
                             className="fixed inset-0 w-full h-full bg-black/20 backdrop-blur-[2px] z-[999998]"
                             onClick={() => setIsOpen(false)}
                         />
 
-                        {/* 🎯 2️⃣ الصندوقة: Z-Index عالي بزاف باش تغطي الـ Sidebar وكولشي */}
+                        {/* الصندوقة */}
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             className="fixed z-[999999] bg-white border border-slate-100 shadow-[-20px_40px_80px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col"
                             style={{
-                                top: '80px',         // مريكل باش يجي تحت الـ Header نيشـان
-                                right: '20px',        // شاد فـ اليمين
-                                width: '350px',       // العرض "بيطون"
-                                maxWidth: '90vw',     // باش فـ التليفونات ميفوتش الشاشة
-                                height: '500px',      // الطول مـحـدد
-                                maxHeight: '80vh',    // باش ميفوتش طول الشاشة
+                                top: '80px',
+                                right: '20px',
+                                width: '360px',
+                                maxWidth: '90vw',
+                                height: '540px',
+                                maxHeight: '85vh',
                                 borderRadius: '35px'
                             }}
                         >
                             {/* Header */}
-                            <div className="p-5 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase italic">تنبيهات النظام</h3>
+                            <div className="p-4 border-b border-slate-100 bg-slate-50/80 flex flex-col gap-3 shrink-0" dir="rtl">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                        <h3 className="text-[10px] font-black text-slate-500 uppercase italic">تنبيهات النظام</h3>
+                                    </div>
+                                    <button onClick={() => setIsOpen(false)} className="p-1.5 hover:bg-rose-50 text-slate-400 rounded-xl transition-all">
+                                        <X size={16} />
+                                    </button>
                                 </div>
-                                <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-rose-50 text-slate-400 rounded-xl transition-all">
-                                    <X size={16} />
-                                </button>
+
+                                {/* 🌟 2️⃣ فلتر اختيار التاريخ الجديد */}
+                                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-2xl shadow-sm">
+                                    <Calendar size={14} className="text-slate-400 shrink-0" />
+                                    <input 
+                                        type="date"
+                                        value={selectedDate}
+                                        onChange={(e) => onDateChange?.(e.target.value)}
+                                        className="w-full bg-transparent text-slate-800 text-[11px] font-black outline-none cursor-pointer"
+                                    />
+                                    {selectedDate && (
+                                        <button 
+                                            onClick={() => onDateChange?.('')} 
+                                            className="text-[10px] font-black text-rose-500 hover:bg-rose-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 shrink-0"
+                                            title="عرض إشعارات اليوم الحالية"
+                                        >
+                                            <RotateCcw size={10} /> مسح
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* 📜 الـ List مع الـ Scroll المريكّل */}
+                            {/* 📜 الـ List مع الـ Scroll */}
                             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white" dir="rtl">
                                 {notifications.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center opacity-20 italic text-[10px] font-black uppercase">السجل فارغ</div>
+                                    <div className="h-full flex flex-col items-center justify-center opacity-30 italic text-[10px] font-black uppercase">
+                                        {selectedDate ? `لا توجد تنبيهات بتاريخ ${selectedDate}` : 'السجل فارغ'}
+                                    </div>
                                 ) : (
                                     <div className="space-y-3">
                                         {notifications.map((n) => {
-                                            // ⏱️ تفكيك دقيق للتاريخ والوقت لتفادي مشاكل الماركا المقلوبة
                                             const dateObj = new Date(n.created_at);
-                                            const formattedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
-                                            const formattedTime = dateObj.toTimeString().substring(0, 5); // HH:MM
+                                            const formattedDate = dateObj.toISOString().split('T')[0];
+                                            const formattedTime = dateObj.toTimeString().substring(0, 5);
 
                                             return (
                                                 <div
                                                     key={`${n.id}-${n.isFleet ? 'fleet' : 'reg'}`}
                                                     onClick={() => {
-                                                        // قراءة الإشعار حسب نوعه (أسطول أو عادي) لمنع التداخل
                                                         if (!n.is_read) onMarkSingleRead(n.id, n.isFleet);
                                                         onNavigate(n);
                                                         setIsOpen(false);
@@ -104,15 +137,12 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                                     className={`p-4 rounded-[25px] flex gap-3 cursor-pointer transition-all border mb-2 ${!n.is_read ? 'bg-emerald-50/50 border-emerald-100' : 'bg-white border-slate-100'}`}
                                                     dir="rtl"
                                                 >
-                                                    {/* الأيقونة أو الحرف الأول د المشغل */}
                                                     <div className={`h-10 w-10 rounded-[15px] flex items-center justify-center font-black text-xs shrink-0 border-2 ${!n.is_read ? 'bg-[#0F5A3E] text-white border-[#0F5A3E]' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
                                                         {n.isFleet ? '🏎️' : (n.staff_name?.[0]?.toUpperCase() || '🔔')}
                                                     </div>
 
                                                     <div className="flex-1 min-w-0 text-right">
                                                         <div className="flex justify-between items-center mb-1.5 gap-2">
-                                                            {/* التسمية الفوقانية د الجهة */}
-                                                            {/* التسمية الفوقانية د الجهة مترجمة للعربي للشوفات النقية */}
                                                             <span className="text-[10px] font-black text-slate-500 uppercase italic leading-none shrink-0">
                                                                 {n.isFleet ? (
                                                                     n.agency === 'Krona' ? '🏎️ أسطول كرونة' :
@@ -122,7 +152,6 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                                                 ) : n.staff_name}
                                                             </span>
 
-                                                            {/* 📅 البادج د التاريخ والوقت غلااااد وبألوان غامقة واضحة */}
                                                             <div className="flex items-center gap-1 shrink-0">
                                                                 <span className="font-black text-slate-950 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] leading-none">
                                                                     {formattedDate}
@@ -134,7 +163,6 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                                                     type="button"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        // 🗑️ حذف دقيق من الجدول المناسب عبر الـ Hook المحدث
                                                                         onDeleteNotification(n.id, n.isFleet);
                                                                     }}
                                                                     className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded-md hover:bg-rose-50 flex items-center justify-center shrink-0"
@@ -145,7 +173,6 @@ export default function NotificationDropdown({ notifications, unreadCount, onMar
                                                             </div>
                                                         </div>
 
-                                                        {/* 📝 النص د الإشعار: صغار ولكن رجع غلييييظ وباين كثر وعاطي الشوفات */}
                                                         <p className="text-xs font-black text-slate-950 tracking-tighter leading-snug w-full">
                                                             {n.message}
                                                         </p>

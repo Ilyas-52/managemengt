@@ -33,8 +33,6 @@ export default function HamzaResults({ students, examResults, updateResult, sele
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-24 italic text-right" dir="rtl">
 
-
-
             {students
                 .filter(student =>
                     // ✅ الشرط 1: يكون عندو تاريخ امتحان مبرمج
@@ -49,7 +47,8 @@ export default function HamzaResults({ students, examResults, updateResult, sele
                     const currentChanges = localChanges[student.id] || {} as Partial<ExamResult>;
                     const record = { ...dbRecord, ...currentChanges };
 
-                    // 🛡️ حساب قوانين الإقصاء
+                    // 🛡️ حساب قوانين الإقصاء والمرور بـ أمان
+                    const isTheory1Passed = record.theory_result === 'admis';
                     const isTheory1Failed = record.theory_result === 'echoue';
                     const isTheory2Passed = record.theory_result_2 === 'admis';
                     const isTheory2Failed = record.theory_result_2 === 'echoue';
@@ -60,13 +59,13 @@ export default function HamzaResults({ students, examResults, updateResult, sele
                     // 2. واش استهلك حق الخطأ فـ النظري؟ (سقط فـ 1 ونجح فـ 2)
                     const usedLifeInTheory = isTheory1Failed && isTheory2Passed;
 
-                    // 3. واش مقصي نهائياً فـ التطبيقي؟ (نجح فـ النظري بـ صعوبة وسقط فـ أول تطبيق)
-                    const isEliminatedPractical = usedLifeInTheory && record.practical_result === 'echoue';
+                    // 3. واش مقصي نهائياً فـ التطبيقي؟ (نجح فـ النظري بـ صعوبة وسقط فـ التطبيقي 2)
+                    const isEliminatedPractical = usedLifeInTheory && record.practical_result_2 === 'echoue';
 
                     // الوضعية النهائية (راسب نهائياً)
                     const isTotalFailure = isEliminatedTheory || isEliminatedPractical;
 
-                    const isTheoryPassed = record.theory_result === 'admis' || isTheory2Passed;
+                    const isTheoryPassed = isTheory1Passed || isTheory2Passed;
                     const isPracticalPassed = record.practical_result === 'admis' || record.practical_result_2 === 'admis';
                     const isWinner = isTheoryPassed && isPracticalPassed;
 
@@ -151,27 +150,30 @@ export default function HamzaResults({ students, examResults, updateResult, sele
                                                     <span className="text-[11px] text-slate-700 font-black uppercase tracking-wider">الامتحان التطبيقي</span>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-6">
-                                                    {/* الدورة 01 تطبيقي */}
-                                                    <div className="space-y-3">
+                                                    {/* الدورة 01 تطبيقي (متاحة فقط إذا نجح فـ النظري 1 مباشرة) */}
+                                                    <div className={`space-y-3 ${usedLifeInTheory ? 'opacity-30' : ''}`}>
                                                         <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 01</span>
                                                         <div className="flex gap-2">
-                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result', 'admis')} disabled={isLocked('practical_result')}
+                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result', 'admis')} disabled={isLocked('practical_result') || usedLifeInTheory}
                                                                 className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${record.practical_result === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'}`}>ناجح</button>
-                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result', 'echoue')} disabled={isLocked('practical_result')}
+                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result', 'echoue')} disabled={isLocked('practical_result') || usedLifeInTheory}
                                                                 className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${record.practical_result === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'}`}>راسب</button>
                                                         </div>
+                                                        {usedLifeInTheory && (
+                                                            <p className="text-[9px] text-amber-600 font-bold mt-1 text-center">⚠️ تم الانتقال للدورة 2 (حق الخطأ مستهلك)</p>
+                                                        )}
                                                     </div>
 
-                                                    {/* الدورة 02 تطبيقي (الممنوعة إلا سقط فـ النظري 1) */}
-                                                    <div className={`space-y-3 ${(record.practical_result !== 'echoue' || usedLifeInTheory) ? 'opacity-30' : ''}`}>
+                                                    {/* الدورة 02 تطبيقي (تفتح إذا سقط فـ التطبيقي 1 OR إذا نجح فـ النظري 2) */}
+                                                    <div className={`space-y-3 ${(!usedLifeInTheory && record.practical_result !== 'echoue') ? 'opacity-30' : ''}`}>
                                                         <span className="text-[10px] text-slate-400 font-black uppercase pr-2">الدورة 02</span>
                                                         <div className="flex gap-2">
-                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result_2', 'admis')} disabled={isLocked('practical_result_2') || record.practical_result !== 'echoue' || usedLifeInTheory}
+                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result_2', 'admis')} disabled={isLocked('practical_result_2') || (!usedLifeInTheory && record.practical_result !== 'echoue')}
                                                                 className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${record.practical_result_2 === 'admis' ? 'bg-[#1dbf73] border-[#1dbf73] text-white' : 'bg-white border-slate-100 text-slate-300'}`}>ناجح</button>
-                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result_2', 'echoue')} disabled={isLocked('practical_result_2') || record.practical_result !== 'echoue' || usedLifeInTheory}
+                                                            <button onClick={() => handleLocalUpdate(student.id, 'practical_result_2', 'echoue')} disabled={isLocked('practical_result_2') || (!usedLifeInTheory && record.practical_result !== 'echoue')}
                                                                 className={`flex-1 h-12 rounded-2xl text-[11px] font-black border-2 transition-all ${record.practical_result_2 === 'echoue' ? 'bg-[#ef4444] border-[#ef4444] text-white' : 'bg-white border-slate-100 text-slate-300'}`}>راسب</button>
                                                         </div>
-                                                        {usedLifeInTheory && record.practical_result === 'echoue' && (
+                                                        {usedLifeInTheory && record.practical_result_2 === 'echoue' && (
                                                             <p className="text-[9px] text-red-500 font-bold mt-1 text-center">⚠️ مقصي نهائياً</p>
                                                         )}
                                                     </div>
@@ -222,19 +224,14 @@ export default function HamzaResults({ students, examResults, updateResult, sele
                                         onClick={async () => {
                                             setLoading(student.id);
                                             try {
-                                                // 1️⃣ كناخدو نسخة من التغييرات اللي دار حمزة
                                                 const rawData = { ...localChanges[student.id] };
-
-                                                // 2️⃣ 🚀 المسمار: كنحيدو التاريخ من البيانات قبل ما نصيفطوها للحفظ
-                                                // هاد السطر كيعزل التاريخ بوحدو وكيخلي "dataToSave" فيها غير النتائج
                                                 const { exam_date, ...dataToSave } = rawData;
 
-                                                // 3️⃣ دبا صيفط "dataToSave" وبلا ما تبدل والو فـ Supabase
                                                 await updateResult(
                                                     student.id,
                                                     name,
                                                     'bulk_update',
-                                                    dataToSave // ✅ هادي هي اللي غاتحفظ دابا بلا Error
+                                                    dataToSave
                                                 );
 
                                                 setLocalChanges(prev => {
