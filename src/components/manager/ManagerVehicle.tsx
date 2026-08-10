@@ -56,10 +56,11 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
         : 0;
 
     const getVehicleName = () => {
-        const agencyName = selectedAgency?.name || 'Boudinar';
+        const agencyName = selectedAgency?.name || (typeof selectedAgency === 'string' ? selectedAgency : 'Boudinar');
         if (agencyName === 'Krona') return 'Dacia Sandero'; 
         if (agencyName === 'Azghar') return 'Clio4';        
-        return 'Peugeot 208'; 
+        if (agencyName === 'Tazaghine') return 'Opel Corsa'; // 👈 إضافة tazaghine بنجاح
+        return 'Peugeot 208'; // بودينار كتاخد بيجو
     };
 
     const handlePrintVehicle = () => {
