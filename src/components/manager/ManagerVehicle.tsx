@@ -1,33 +1,67 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { Gauge, Fuel, Flag, FileText, CalendarDays } from 'lucide-react';
-
+import { supabase } from '@/lib/supabase';
 import { Agency } from '@/types/dashboard';
 
 interface Props {
     mileage_start: number;
     mileage_end: number;
     fuel_expense: number;
-    previous_mileage_end?: number; // 🌟 عداد النهاية ديال الأسبوع الماضي
+    previous_mileage_end?: number;
     selectedAgency?: Agency | null;
     instructorName?: string;
 }
 
 export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expense, previous_mileage_end = 0, selectedAgency, instructorName }: Props) {
+    const [fetchedPreviousEnd, setFetchedPreviousEnd] = useState<number>(previous_mileage_end);
 
-    // 🚀 حساب كيلومتراج الـ Weekend أوتوماتيكياً (عداد البداية الجديد - عداد النهاية الماضي)
-    const weekendKm = (mileage_start > previous_mileage_end && previous_mileage_end > 0) 
-        ? (mileage_start - previous_mileage_end) 
+    // 🚀 جلب دقيق لعداد الجمعة الماضي من جدول vehicle_logs
+    useEffect(() => {
+        async function getRealLastMileage() {
+            const currentAgencyName = selectedAgency?.name || (typeof selectedAgency === 'string' ? selectedAgency : 'Boudinar');
+
+            try {
+                // 🔍 الترتيب بـ updated_at بدلاً من created_at اللي ما كاينش ف الجدول
+                const { data, error } = await supabase
+                    .from('vehicle_logs')
+                    .select('mileage_end')
+                    .ilike('agency', `%${currentAgencyName}%`)
+                    .gt('mileage_end', 0)
+                    .order('updated_at', { ascending: false }) // 👈 الترتيب المصلح
+                    .limit(1)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error("❌ Supabase query error:", error.message);
+                }
+
+                if (data && data.mileage_end && Number(data.mileage_end) > 0) {
+                    setFetchedPreviousEnd(Number(data.mileage_end));
+                } else if (previous_mileage_end > 0) {
+                    setFetchedPreviousEnd(previous_mileage_end);
+                }
+            } catch (e) {
+                console.error("Error fetching last mileage:", e);
+            }
+        }
+
+        getRealLastMileage();
+    }, [previous_mileage_end, selectedAgency]);
+
+    // 🚀 حساب مسافة الـ Weekend بـ أمان تام
+    const lastEnd = fetchedPreviousEnd;
+    const weekendKm = (mileage_start > 0 && lastEnd > 0 && mileage_start >= lastEnd) 
+        ? (mileage_start - lastEnd) 
         : 0;
 
-    // 🚀 مسمار الحل: دالة كتعرف الطوموبيل أوتوماتيك على حساب الوكالة المعزولة بلا تروين
     const getVehicleName = () => {
         const agencyName = selectedAgency?.name || 'Boudinar';
-        if (agencyName === 'Krona') return 'Dacia Sandero'; // كرونا كتاخد الداسيا
-        if (agencyName === 'Azghar') return 'Clio4';        // أزغار كتاخد الكليو
-        return 'Peugeot 208'; // بودينار كتاخد بيجو
+        if (agencyName === 'Krona') return 'Dacia Sandero'; 
+        if (agencyName === 'Azghar') return 'Clio4';        
+        return 'Peugeot 208'; 
     };
 
-    /// 🚀 دالة طباعة تقرير السيارة (أسبوعي بسيط) - نسخة الأندرويد المضمونة
     const handlePrintVehicle = () => {
         const totalDistance = (mileage_end > mileage_start) ? (mileage_end - mileage_start) : 0;
         const currentVehicle = getVehicleName();
@@ -69,7 +103,7 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
             <table>
                 <tr>
                     <th>عداد النهاية السابق (الجمعة)</th>
-                    <td class="highlight">${previous_mileage_end || 0}</td>
+                    <td class="highlight">${lastEnd || 0}</td>
                 </tr>
                 <tr>
                     <th>عداد البداية الجديد (الاثنين)</th>
@@ -118,7 +152,7 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
     return (
         <div className="max-w-3xl mx-auto space-y-4 animate-in fade-in duration-700 font-black italic uppercase tracking-tighter text-right" dir="rtl">
 
-            {/* 🔝 كارت علوي مفرز كيبين اسم السيارة الديناميكية والمدرب ديالها لنقاوة الواجهة */}
+            {/* 🔝 كارت علوي */}
             <div className="bg-slate-900 text-white p-4 rounded-[22px] flex items-center justify-between shadow-md mb-2">
                 <span className="text-xs font-black">المركبة الجارية: <span className="text-emerald-400">{getVehicleName()}</span></span>
                 <span className="text-[10px] opacity-60">المدرب المسؤول: {instructorName || '----'}</span>
@@ -164,7 +198,7 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
                 </div>
             </div>
 
-            {/* 🌟 5. المسافة المقطوعة فـ الـ Weekend (موافق لـ الديزاين السابق وبنفس الألوان) */}
+            {/* 🌟 5. المسافة المقطوعة فـ الـ Weekend المضمونة */}
             <div>
                 <div className="w-full h-12 bg-slate-50 rounded-2xl flex items-center justify-between px-8 opacity-60">
                     <span className="text-[9px] text-slate-500 font-black flex items-center gap-2">
@@ -176,7 +210,7 @@ export default function ManagerVehicle({ mileage_start, mileage_end, fuel_expens
                 </div>
             </div>
 
-            {/* 🚀 بوطونة استخراج الـ PDF الذكي */}
+            {/* 🚀 بوطونة استخراج الـ PDF */}
             <button
                 onClick={handlePrintVehicle}
                 className="w-full h-16 bg-slate-900 text-white rounded-[28px] flex items-center justify-center gap-3 font-black text-sm shadow-xl hover:bg-black transition-all active:scale-95 mt-6 border-none cursor-pointer"

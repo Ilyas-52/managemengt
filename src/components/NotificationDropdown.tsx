@@ -17,8 +17,8 @@ export interface Notification {
 interface Props {
     notifications: Notification[];
     unreadCount: number;
-    selectedDate?: string;                                // 🌟 جديد
-    onDateChange?: (date: string) => void;               // 🌟 جديد
+    selectedDate?: string;
+    onDateChange?: (date: string) => void;
     onMarkAllRead: () => void;
     onMarkSingleRead: (id: string, isFleet?: boolean) => void;
     onDeleteNotification: (id: string, isFleet?: boolean) => void;
@@ -92,19 +92,31 @@ export default function NotificationDropdown({
                                     </button>
                                 </div>
 
-                                {/* 🌟 2️⃣ فلتر اختيار التاريخ الجديد */}
-                                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-2xl shadow-sm">
-                                    <Calendar size={14} className="text-slate-400 shrink-0" />
+                                {/* 🌟 فلتر اختيار التاريخ المطور ليعمل 100% ف التليفون والتاتش */}
+                                <div 
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.querySelector('input');
+                                        if (input) {
+                                            try { input.showPicker(); } catch {}
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-2xl shadow-sm cursor-pointer select-none"
+                                >
+                                    <Calendar size={14} className="text-slate-400 shrink-0 pointer-events-none" />
                                     <input 
                                         type="date"
                                         value={selectedDate}
+                                        onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => onDateChange?.(e.target.value)}
                                         className="w-full bg-transparent text-slate-800 text-[11px] font-black outline-none cursor-pointer"
                                     />
                                     {selectedDate && (
                                         <button 
-                                            onClick={() => onDateChange?.('')} 
-                                            className="text-[10px] font-black text-rose-500 hover:bg-rose-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 shrink-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDateChange?.('');
+                                            }} 
+                                            className="text-[10px] font-black text-rose-500 hover:bg-rose-50 px-2 py-1 rounded-md flex items-center gap-1 shrink-0"
                                             title="عرض إشعارات اليوم الحالية"
                                         >
                                             <RotateCcw size={10} /> مسح
