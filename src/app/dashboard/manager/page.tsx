@@ -719,8 +719,7 @@ useEffect(() => {
                         onClick={() => setIsSidebarOpen(false)}
                     />
 
-                    <aside className="absolute right-0 top-0 bottom-0 w-[300px] bg-white p-6 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                        <div className="flex justify-between items-center mb-8">
+<aside className="absolute right-0 top-0 bottom-0 w-[300px] bg-white p-6 shadow-2xl flex flex-col overflow-y-auto h-full pb-20 animate-in slide-in-from-right duration-300">                        <div className="flex justify-between items-center mb-8">
                             <h2 className="text-xl font-black italic">الـقـائـمـة</h2>
                             <button onClick={() => setIsSidebarOpen(false)} className="p-2 bg-slate-100 rounded-full">
                                 <X size={20} />
