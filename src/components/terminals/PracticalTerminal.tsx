@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, FileText, UserCircle, LogOut, X, ClipboardList } from 'lucide-react';
+import { Calendar, Fuel, Car, TrendingUp, CheckCircle2, Clock, FileText, UserCircle, LogOut, X, ClipboardList } from 'lucide-react';
 
 // Shared Components
 import PracticalPlanning from '@/components/pratique/HamzaPlanning';
@@ -11,7 +11,7 @@ import PracticalAttendance from '@/components/pratique/HamzaAttendance';
 import PracticalLogistics from '@/components/pratique/HamzaLogistics';
 import PracticalFinancials from '@/components/pratique/HamzaFinancials';
 import PracticalResults from '@/components/pratique/HamzaResults';
-
+import PracticalExtraHours from '@/components/pratique/PracticalExtraHours';
 import { Student, ScheduleData, AttendanceRecord, CashRecord, ExamResult, VehicleLog } from '@/types/dashboard';
 
 interface PracticalTerminalProps {
@@ -776,6 +776,7 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                         { id: 'vehicle', label: 'السيارة', icon: Fuel },
                         { id: 'financial', label: 'الصندوق', icon: TrendingUp },
                         { id: 'results', label: 'الامتحانات', icon: FileText },
+                        { id: 'extra_hours', label: 'الساعات الإضافية', icon: Clock },
                     ].map(tab => (
                         <button key={tab.id} onClick={() => { setActiveTab(tab.id); localStorage.setItem(`${instructorName}_tab`, tab.id); }}
                             className={`px-5 py-3.5 sm:px-8 sm:py-5 rounded-xl sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black flex items-center gap-2 sm:gap-3 transition-all duration-300 whitespace-nowrap ${activeTab === tab.id ? 'bg-white text-slate-900 shadow-md border-2 border-slate-200 scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
@@ -798,7 +799,16 @@ export default function PracticalTerminal({ instructorName, agenceId, agenceName
                                 updateResult={updateResult}
                                 selectedAgency={selectedAgency}
                             />
-                        )}                    </div>
+                        )} 
+    {activeTab === 'extra_hours' && (
+    <PracticalExtraHours 
+        selectedAgency={selectedAgency}
+        instructorName={instructorName}
+        agenceId={agenceId}
+        agenceName={agenceName}
+        students={students} // 👈 نمررو قائمة التلاميذ هنا
+    />
+)}                   </div>
                 </div>
 
                 <PracticalPlanningModal showModal={showModal} setShowModal={setShowModal} students={students} addOrUpdateStudent={addOrUpdateStudent} />

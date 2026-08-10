@@ -6,7 +6,7 @@ import NotificationDropdown, { Notification } from '@/components/NotificationDro
 import { useNotifications } from '@/hooks/useNotifications';
 import ManagerGPRS from '@/components/manager/ManagerGPRS';
 import ManagerTrucks from '@/components/manager/ManagerTrucks';
-import { Search, ShieldCheck, Truck, Scale, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText, LogOut } from 'lucide-react';
+import { Search, ShieldCheck, Clock, Truck, Scale, Menu, X, Calendar, ClipboardCheck, Wallet, Car, GraduationCap, Coins, ChevronDown, Gauge, FileText, LogOut } from 'lucide-react';
 
 // استيراد الشقوف
 import ManagerFinance from '@/components/manager/ManagerFinance';
@@ -21,6 +21,7 @@ import ManagerPenalties from '@/components/manager/ManagerPenalties';
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
 import { Agency, Student, ScheduleData, ExamResult, AttendanceRecord, CashRecord, VehicleLog } from '@/types/dashboard';
+import ManagerExtraHours from '@/components/manager/ManagerExtraHours';
 
 // ✅ المسمار الحقيقي: شحن الصفحة فقط فالمتصفح وبلا SSR
 const GlobalReports = dynamic(() => import('@/components/manager/GlobalReports'), {
@@ -574,6 +575,20 @@ useEffect(() => {
                     >
                         <span className="flex items-center gap-2">🗂️   طلبات تسليم وارجاع السيارات</span>
                     </button>
+                    {/* ⏰ إدارة الساعات الإضافية */}
+<button
+    onClick={() => {
+        setActiveStaff('extraHours');
+        setShowNathariSub(false);
+        setShowHamzaSub(false);
+        setShowAgenciesMenu(false);
+    }}
+    className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+        ${activeStaff === 'extraHours' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+>
+    <span className="flex items-center gap-2">⏰ الساعات الإضافية</span>
+    <Clock size={16} />
+</button>
                 </div>
                 <div className="mt-auto pt-10 text-[9px] text-slate-300 font-bold text-center italic uppercase">v2.0 • Powered by Mahamran</div>
             </aside>
@@ -663,7 +678,12 @@ useEffect(() => {
                         <div className="max-w-[1600px] mx-auto">
                             <ManagerFleetOperations />
                         </div>
-                    ) : ( // ⬅️ هنا كـيـتـكـمّـل الـ شرط للـ الأقسام لي باقة عندك تـحـت فـ الـ كود
+                        ) : activeStaff === 'extraHours' ? ( // 🌟 المسمار الجديد: عرض مكون الساعات الإضافية عند اختيار التاب
+    <div className="max-w-[1600px] mx-auto">
+        <ManagerExtraHours selectedAgency={selectedAgency} />
+    </div>
+                    ) : ( 
+                        // ⬅️ هنا كـيـتـكـمّـل الـ شرط للـ الأقسام لي باقة عندك تـحـت فـ الـ كود
                         <div className="max-w-[1600px] mx-auto space-y-8">
                             {/* ✅ مسمار 2: النظري يخدم مع أي مدرس نظري (براهيم، يوسف، محمد، زكرياء...) */}
                             {activeStaff?.trim().toLowerCase() === theoreticalInstructor.toLowerCase() ? (
@@ -928,6 +948,21 @@ useEffect(() => {
                                     طلبات تسليم وارجاع السيارات
                                 </span>
                             </button>
+{/* ⏰ إدارة الساعات الإضافية (Mobile) */}
+<button
+    onClick={() => {
+        setActiveStaff('extraHours');
+        setShowNathariSub(false);
+        setShowHamzaSub(false);
+        setShowAgenciesMenu(false);
+        setIsSidebarOpen(false); // 🟢 كيسد المينيو ف التليفون تلقائياً
+    }}
+    className={`w-full flex items-center justify-between p-5 rounded-[25px] border-2 font-black italic transition-all mt-2
+        ${activeStaff === 'extraHours' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'}`}
+>
+    <span className="flex items-center gap-2">⏰ الساعات الإضافية</span>
+    <Clock size={16} />
+</button>
                         </div>
                     </aside>
                 </div>
