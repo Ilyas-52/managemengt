@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import TheorieHeader from '@/components/theorie/TheorieHeader';
-import { Printer, Search, Save, User, CheckCircle2, Check, X, GraduationCap, Car, LockIcon, AlertCircle, ClipboardList } from 'lucide-react';
+import { Printer, Search, Save,Clock, User, CheckCircle2, Check, X, GraduationCap, Car, LockIcon, AlertCircle, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic'; const PdfButton = dynamic(() => import('@/components/theorie/trancheButton'), {
   ssr: false,
@@ -16,9 +16,10 @@ const MedicalTimbreButton = dynamic(() => import('@/components/theorie/MedicalTi
   ssr: false,
   loading: () => <div className="animate-pulse bg-slate-200 h-10 w-32 rounded-xl"></div>
 });
-
+import TheorieExtraHours from '@/components/theorie/TheorieExtraHours';
 import { ExamResult } from '@/types/dashboard';
 import { generateDetailedExamsPrint } from '@/components/manager/PrintDetailedResults';
+
 
 interface Student {
   id: string;
@@ -68,6 +69,7 @@ interface TheoryTerminalProps {
   instructorName: string;
   agenceId: string;
   agenceName: string;
+  
 }
 
 export interface HeavyExamData {
@@ -458,7 +460,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
   const [students, setStudents] = useState<Student[]>([]);
   const [examResults, setExamResults] = useState<ExamResult[]>([]);
   const [agencies, setAgencies] = useState<{ id: string; name: string }[]>([]);
-  const [activePanel, setActivePanel] = useState<'registration' | 'exams'>('registration');
+ const [activePanel, setActivePanel] = useState<'registration' | 'exams' | 'extra_hours'>('registration');
   const [examSearchTerm, setExamSearchTerm] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const isSubmitting = useRef(false);
@@ -1022,29 +1024,42 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
       />
-      <main className="flex-1 p-4 md:p-8">
+     <main className="flex-1 p-4 md:p-8">
         {/* Toggle Menu */}
-        <div className="max-w-md mx-auto mt-24 md:mt-12 mb-8 px-4">
-          <div className="bg-white/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200/50 shadow-sm flex items-center justify-between">
+        <div className="max-w-xl mx-auto mt-24 md:mt-12 mb-8 px-4">
+          <div className="bg-white/80 backdrop-blur-xl p-1.5 rounded-full border border-slate-200/50 shadow-sm flex items-center justify-between gap-1">
             <button
               onClick={() => setActivePanel('registration')}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-[11px] transition-all font-black ${activePanel === 'registration'
-                ? 'bg-slate-900 text-white shadow-md'
-                : 'text-slate-400 hover:bg-slate-50'
-                }`}
+              className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-full text-[11px] transition-all font-black ${
+                activePanel === 'registration'
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'text-slate-400 hover:bg-slate-50'
+              }`}
             >
               <User size={14} />
               تسجيل المترشحين
             </button>
             <button
               onClick={() => setActivePanel('exams')}
-              className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-full text-[11px] transition-all font-black ${activePanel === 'exams'
-                ? 'bg-[#0F5A3E] text-white shadow-md'
-                : 'text-slate-400 hover:bg-slate-50'
-                }`}
+              className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-full text-[11px] transition-all font-black ${
+                activePanel === 'exams'
+                  ? 'bg-[#0F5A3E] text-white shadow-md'
+                  : 'text-slate-400 hover:bg-slate-50'
+              }`}
             >
               <CheckCircle2 size={14} />
               إدارة الامتحانات
+            </button>
+            <button
+              onClick={() => setActivePanel('extra_hours')}
+              className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-full text-[11px] transition-all font-black ${
+                activePanel === 'extra_hours'
+                  ? 'bg-emerald-700 text-white shadow-md'
+                  : 'text-slate-400 hover:bg-slate-50'
+              }`}
+            >
+              <Clock size={14} />
+              الساعات الإضافية
             </button>
           </div>
         </div>
@@ -1114,7 +1129,7 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
               />
             </div>
           </>
-        ) : (
+        ) : activePanel === 'exams' ? (
           <div className="max-w-6xl mx-auto px-4">
             <div className="bg-white/80 backdrop-blur-md border border-slate-200 rounded-[35px] p-6 shadow-xl space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -1152,6 +1167,16 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
                 )}
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto px-4">
+            <TheorieExtraHours
+              selectedAgency={agencies.find(a => String(a.id) === String(agenceId)) || { id: agenceId, name: agenceName }}
+              instructorName={instructorName}
+              agenceId={agenceId}
+              agenceName={agenceName}
+              students={students as any}
+            />
           </div>
         )}
       </main>

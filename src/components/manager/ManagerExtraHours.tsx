@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Clock, Search, Trash2, RefreshCw, User, Coins } from 'lucide-react';
+import { Clock, Search, Trash2, RefreshCw, User, Coins, BookOpen, Car, Layers } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Agency } from '@/types/dashboard';
 
@@ -16,6 +16,7 @@ interface ExtraHourRecord {
     notes?: string;
     instructor_name: string;
     agency_name: string;
+    status?: string;
     created_at: string;
 }
 
@@ -27,6 +28,9 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
     const [records, setRecords] = useState<ExtraHourRecord[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    
+    // 🌟 نوع القسم: 'all' (الكل) | 'practical' (التطبيقي) | 'theory' (النظري)
+    const [categoryType, setCategoryType] = useState<'all' | 'practical' | 'theory'>('all');
     const [selectedInstructor, setSelectedInstructor] = useState<string>('all');
 
     // 🚀 جلب البيانات من Supabase
@@ -52,7 +56,29 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
         fetchExtraHours();
     }, [fetchExtraHours]);
 
-    // ⏱️ دالة تحويل الساعات العشرية المخزنة إلى صيغة الساعات والدقائق (مثل 2h 05m)
+    // 🔄 دالة تحويل الحالة إلى مدفوعة بشكل نهائي وبدون إمكانية التراجع
+    const handleMarkAsPaid = async (id: string, currentStatus?: string) => {
+        if (currentStatus === 'paid') return;
+
+        if (!confirm("هل أنت متأكد من تأكيد استلام هذا المبلغ؟ بعد التأكيد لا يمكن التراجع عن هذه العملية.")) return;
+
+        try {
+            const { error } = await supabase
+                .from('extra_hours')
+                .update({ status: 'paid' })
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setRecords(prev =>
+                prev.map(r => (r.id === id ? { ...r, status: 'paid' } : r))
+            );
+        } catch (err: any) {
+            alert("خطأ في تحديث الحالة: " + err.message);
+        }
+    };
+
+    // ⏱️ دالة تحويل الساعات العشرية إلى صيغة الساعات والدقائق (2h 05m)
     const formatDuration = (hoursDecimal: number): string => {
         if (!hoursDecimal || hoursDecimal <= 0) return '0h 00m';
         const totalMinutes = Math.round(Number(hoursDecimal) * 60);
@@ -75,26 +101,51 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
         }
     };
 
-    // 🔍 الفلترة الذكية المربوطة بـ المدربين والوكالات
+    // 🎯 أسماء مدربي التطبيقي والنظري
+    const practicalInstructors = ['hamza', 'bilal', 'ismail', 'belkassmi'];
+    const theoryInstructors = ['youssef', 'mohammed', 'brahim', 'zakaria', 'wafae'];
+
+    // 🔍 الفلترة الذكية المربوطة بـ القسم + المدرب + الوكالة
     const filteredRecords = useMemo(() => {
         return records.filter(item => {
-            const matchesSearch = item.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  item.instructor_name.toLowerCase().includes(searchTerm.toLowerCase());
+            const insName = (item.instructor_name || '').toLowerCase();
+            const agName = (item.agency_name || '').toLowerCase();
 
-            let matchesInstructor = true;
-            if (selectedInstructor === 'Hamza') {
-                matchesInstructor = item.instructor_name.toLowerCase().includes('hamza') || item.agency_name.toLowerCase().includes('boudinar');
-            } else if (selectedInstructor === 'Bilal') {
-                matchesInstructor = item.instructor_name.toLowerCase().includes('bilal') || item.agency_name.toLowerCase().includes('krona');
-            } else if (selectedInstructor === 'Ismail') {
-                matchesInstructor = item.instructor_name.toLowerCase().includes('ismail') || item.agency_name.toLowerCase().includes('azghar');
-            } else if (selectedInstructor === 'Belkassmi') {
-                matchesInstructor = item.instructor_name.toLowerCase().includes('belkassmi') || item.agency_name.toLowerCase().includes('tazaghine');
+            // 1. فلتر البحث
+            const matchesSearch = (item.student_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  insName.includes(searchTerm.toLowerCase());
+
+            // 2. فلتر القسم (تطبيقي / نظري / الكل)
+            let matchesCategory = true;
+            if (categoryType === 'practical') {
+                matchesCategory = practicalInstructors.some(p => insName.includes(p));
+            } else if (categoryType === 'theory') {
+                matchesCategory = theoryInstructors.some(t => insName.includes(t));
             }
 
-            return matchesSearch && matchesInstructor;
+            // 3. فلتر المدرب المختار
+            let matchesInstructor = true;
+            if (selectedInstructor === 'Hamza') {
+                matchesInstructor = insName.includes('hamza') || agName.includes('boudinar');
+            } else if (selectedInstructor === 'Bilal') {
+                matchesInstructor = insName.includes('bilal') || agName.includes('krona');
+            } else if (selectedInstructor === 'Ismail') {
+                matchesInstructor = insName.includes('ismail') || agName.includes('azghar');
+            } else if (selectedInstructor === 'Belkassmi') {
+                matchesInstructor = insName.includes('belkassmi') || agName.includes('tazaghine');
+            } else if (selectedInstructor === 'Youssef') {
+                matchesInstructor = insName.includes('youssef') || agName.includes('boudinar');
+            } else if (selectedInstructor === 'Mohammed') {
+                matchesInstructor = insName.includes('mohammed') || agName.includes('krona');
+            } else if (selectedInstructor === 'Brahim') {
+                matchesInstructor = insName.includes('brahim') || agName.includes('azghar');
+            } else if (selectedInstructor === 'Zakaria') {
+                matchesInstructor = insName.includes('zakaria') || insName.includes('wafae') || agName.includes('tazaghine');
+            }
+
+            return matchesSearch && matchesCategory && matchesInstructor;
         });
-    }, [records, searchTerm, selectedInstructor]);
+    }, [records, searchTerm, categoryType, selectedInstructor]);
 
     // 📊 حساب المجموع الشامل للكروت العلوية (Totals)
     const totalHours = filteredRecords.reduce((acc, curr) => acc + (Number(curr.total_hours) || 0), 0);
@@ -103,13 +154,63 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
     return (
         <div className="max-w-7xl mx-auto space-y-6 font-normal text-right" dir="rtl">
             
-            {/* 🔝 1. الكروت العلوية للإحصائيات الشاملة (Totals) */}
+            {/* 🌟 1. شريط التبديل بين النظري والتطبيقي (Toggle Section) */}
+            <div className="bg-white border border-slate-200/80 p-2 rounded-2xl shadow-sm max-w-md mx-auto flex items-center justify-between gap-1">
+                <button
+                    onClick={() => {
+                        setCategoryType('all');
+                        setSelectedInstructor('all');
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        categoryType === 'all'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                >
+                    <Layers size={14} />
+                    <span>🌐 الكل</span>
+                </button>
+
+                <button
+                    onClick={() => {
+                        setCategoryType('practical');
+                        setSelectedInstructor('all');
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        categoryType === 'practical'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                >
+                    <Car size={14} />
+                    <span>🏎️ التطبيقي</span>
+                </button>
+
+                <button
+                    onClick={() => {
+                        setCategoryType('theory');
+                        setSelectedInstructor('all');
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        categoryType === 'theory'
+                            ? 'bg-[#0F5A3E] text-white shadow-sm'
+                            : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                >
+                    <BookOpen size={14} />
+                    <span>📝 النظري</span>
+                </button>
+            </div>
+
+            {/* 🔝 2. الكروت العلوية للإحصائيات الشاملة (Totals) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {/* إجمالي الساعات */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
                     <div>
-                        <span className="text-xs font-medium text-slate-400">إجمالي الساعات</span>
+                        <span className="text-xs font-medium text-slate-400">
+                            إجمالي الساعات {categoryType === 'practical' ? '(التطبيقي)' : categoryType === 'theory' ? '(النظري)' : ''}
+                        </span>
                         <h3 className="text-2xl font-bold text-slate-800 mt-0.5">{formatDuration(totalHours)}</h3>
                     </div>
                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
@@ -140,7 +241,7 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                 </div>
             </div>
 
-            {/* 🔍 2. شريط البحث واختيار المدرب / الوكالة */}
+            {/* 🔍 3. شريط البحث واختيار المدرب / الوكالة على حساب القسم */}
             <div className="bg-white border border-slate-200/80 p-3.5 rounded-2xl shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
                 
                 {/* خانة البحث */}
@@ -148,14 +249,14 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                     <Search size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="بحث باسم المترشح..."
+                        placeholder="بحث باسم المترشح أو المدرب..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-slate-50/60 border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-300"
                     />
                 </div>
 
-                {/* فلتر المدربين */}
+                {/* فلتر المدربين المتكيف */}
                 <div className="flex items-center gap-2.5 w-full md:w-auto">
                     <label className="text-xs text-slate-500 font-medium">عرض حسب المدرب:</label>
                     <select
@@ -163,11 +264,27 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                         onChange={(e) => setSelectedInstructor(e.target.value)}
                         className="bg-slate-50/60 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 outline-none cursor-pointer focus:border-emerald-500 font-medium"
                     >
-                        <option value="all">🌐 كل المدربين (جميع الوكالات)</option>
-                        <option value="Hamza">👤 Hamza — (Boudinar)</option>
-                        <option value="Bilal">👤 Bilal — (Krona)</option>
-                        <option value="Ismail">👤 Ismail — (Azghar)</option>
-                        <option value="Belkassmi">👤 Belkassmi — (Tazaghine)</option>
+                        <option value="all">🌐 كل المدربين ({categoryType === 'practical' ? 'التطبيقي' : categoryType === 'theory' ? 'النظري' : 'الكل'})</option>
+                        
+                        {/* مدربي التطبيقي */}
+                        {(categoryType === 'all' || categoryType === 'practical') && (
+                            <optgroup label="🏎️ مدربي التطبيقي">
+                                <option value="Hamza">👤 Hamza — (Boudinar)</option>
+                                <option value="Bilal">👤 Bilal — (Krona)</option>
+                                <option value="Ismail">👤 Ismail — (Azghar)</option>
+                                <option value="Belkassmi">👤 Belkassmi — (Tazaghine)</option>
+                            </optgroup>
+                        )}
+
+                        {/* مسؤولي النظري */}
+                        {(categoryType === 'all' || categoryType === 'theory') && (
+                            <optgroup label="📝 مسؤولي النظري">
+                                <option value="Youssef">👤 Youssef — (Boudinar)</option>
+                                <option value="Mohammed">👤 Mohammed — (Krona)</option>
+                                <option value="Brahim">👤 Brahim — (Azghar)</option>
+                                <option value="Zakaria">👤 Zakaria — (Tazaghine)</option>
+                            </optgroup>
+                        )}
                     </select>
 
                     <button
@@ -180,20 +297,21 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                 </div>
             </div>
 
-            {/* 📜 3. جدول التفاصيل المقسم بوضوح */}
+            {/* 📜 4. جدول التفاصيل المقسم بوضوح */}
             <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-right border-collapse">
                         <thead>
                             <tr className="bg-slate-50/60 border-b border-slate-100 text-slate-400 text-xs font-medium">
                                 <th className="p-3.5">المترشح</th>
-                                <th className="p-3.5">المدرب</th>
+                                <th className="p-3.5">المدرب / المسؤول</th>
                                 <th className="p-3.5">الوكالة</th>
                                 <th className="p-3.5">البداية</th>
                                 <th className="p-3.5">النهاية</th>
                                 <th className="p-3.5">المدة</th>
                                 <th className="p-3.5">ثمن الساعة</th>
                                 <th className="p-3.5">المبلغ الإجمالي</th>
+                                <th className="p-3.5 text-center">حالة الدفع</th>
                                 <th className="p-3.5">التاريخ</th>
                                 <th className="p-3.5 text-center">حذف</th>
                             </tr>
@@ -201,11 +319,11 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                         <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={10} className="p-8 text-center text-slate-400 font-normal">جاري التحميل...</td>
+                                    <td colSpan={11} className="p-8 text-center text-slate-400 font-normal">جاري التحميل...</td>
                                 </tr>
                             ) : filteredRecords.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className="p-8 text-center text-slate-400 font-normal">لا توجد ساعات إضافية مسجلة</td>
+                                    <td colSpan={11} className="p-8 text-center text-slate-400 font-normal">لا توجد ساعات إضافية مسجلة</td>
                                 </tr>
                             ) : (
                                 filteredRecords.map((item) => (
@@ -218,7 +336,11 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                                         </td>
 
                                         {/* المدرب */}
-                                        <td className="p-3.5 font-medium text-slate-700">{item.instructor_name}</td>
+                                        <td className="p-3.5 font-medium text-slate-700">
+                                            <span className="flex items-center gap-1.5">
+                                                {item.instructor_name}
+                                            </span>
+                                        </td>
 
                                         {/* الوكالة */}
                                         <td className="p-3.5">
@@ -237,7 +359,7 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                                             {item.end_time.slice(0, 5)}
                                         </td>
 
-                                        {/* مجموع ساعات الحصة بصيغة واضحة */}
+                                        {/* مجموع ساعات الحصة */}
                                         <td className="p-3.5 font-semibold text-emerald-600">
                                             {formatDuration(item.total_hours)}
                                         </td>
@@ -247,9 +369,28 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                                             {item.hourly_rate} DH
                                         </td>
 
-                                        {/* المجموع المالي للحصة بدون كسور */}
+                                        {/* المجموع المالي للحصة */}
                                         <td className="p-3.5 font-bold text-slate-900">
                                             {Math.round(Number(item.total_amount))} DH
+                                        </td>
+
+                                        {/* 🔘 عمود حالة الدفع: غير مدفوعة قابلة للنقر لمرة واحدة، وتم الدفع ثابتة لا تتغير */}
+                                        <td className="p-3.5 text-center">
+                                            {item.status === 'paid' ? (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500 text-white border border-emerald-600 shadow-sm select-none">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                                    <span>تم الدفع ✅</span>
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleMarkAsPaid(item.id, item.status)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all active:scale-95 cursor-pointer bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100 hover:border-amber-400"
+                                                    title="انقر لتأكيد الدفع"
+                                                >
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                    <span>غير مدفوعة ⏳</span>
+                                                </button>
+                                            )}
                                         </td>
 
                                         {/* التاريخ */}

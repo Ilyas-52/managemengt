@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, Plus, User, Coins, Calendar, Trash2, Pencil } from 'lucide-react';
+import { Clock, Plus, User, Coins, Calendar, Trash2, Pencil, BookOpen } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Student } from '@/types/dashboard';
 
@@ -28,7 +28,7 @@ interface Props {
     students?: Student[];
 }
 
-export default function PracticalExtraHours({ selectedAgency, instructorName, agenceId, agenceName, students = [] }: Props) {
+export default function TheorieExtraHours({ selectedAgency, instructorName, agenceId, agenceName, students = [] }: Props) {
     const [loading, setLoading] = useState(false);
     const [fetchingLogs, setFetchingLogs] = useState(true);
     const [myLogs, setMyLogs] = useState<ExtraHourRecord[]>([]);
@@ -46,9 +46,9 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
 
     const currentAgencyName = agenceName || selectedAgency?.name || 'Boudinar';
     const currentAgenceId = agenceId || selectedAgency?.id || null;
-    const currentInstructor = instructorName || 'المدرب';
+    const currentInstructor = instructorName || 'مدرس النظري';
 
-    // 🚀 جلب الساعات الإضافية المسجلة الخاصة بهاد المدرب
+    // 🚀 جلب الساعات الإضافية المسجلة الخاصة بـ مدرس النظري
     const fetchMyExtraHours = useCallback(async () => {
         setFetchingLogs(true);
         try {
@@ -72,7 +72,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
             if (error) throw error;
             setMyLogs(data || []);
         } catch (err: any) {
-            console.error("Error fetching instructor logs:", err.message);
+            console.error("Error fetching theorie extra hours logs:", err.message);
         } finally {
             setFetchingLogs(false);
         }
@@ -82,17 +82,17 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
         fetchMyExtraHours();
     }, [fetchMyExtraHours]);
 
-    // ⏱️ دالة حساب الدقائق الإجمالية بين البداية والنهاية
+    // ⏱️ حساب الدقائق بين البداية والنهاية
     const getDurationInMinutes = (start: string, end: string): number => {
         if (!start || !end) return 0;
         const [startH, startM] = start.split(':').map(Number);
-        const [endM, endH] = [end.split(':')[1], end.split(':')[0]].map(Number);
+        const [endH, endM] = end.split(':').map(Number);
         const startMins = startH * 60 + startM;
         const endMins = endH * 60 + endM;
         return endMins > startMins ? endMins - startMins : 0;
     };
 
-    // 🎯 دالة تحويل الدقائق إلى تنسيق بشري مفهوم (مثلاً: 125 دقيقة -> 2h 05m)
+    // 🎯 تحويل الدقائق إلى صيغة واضحة (2h 05m)
     const formatDuration = (totalMins: number): string => {
         if (!totalMins || totalMins <= 0) return '0h 00m';
         const hours = Math.floor(totalMins / 60);
@@ -102,7 +102,6 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
         return `${hours}h ${mins < 10 ? '0' : ''}${mins}m`;
     };
 
-    // تحويل رقم الساعات المخزن ف الداتابيز (العشري) إلى ساعات ودقائق واضحة
     const displayStoredHours = (hoursDecimal: number): string => {
         if (!hoursDecimal || hoursDecimal <= 0) return '0h 00m';
         const totalMinutes = Math.round(Number(hoursDecimal) * 60);
@@ -138,7 +137,6 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
             return;
         }
 
-        // الحساب العشري الدقيق للساعات والمبلغ
         const totalHoursDecimal = Number((durationMinutes / 60).toFixed(4));
         const totalAmount = Math.round(totalHoursDecimal * (Number(formData.hourly_rate) || 0));
         const readableTime = formatDuration(durationMinutes);
@@ -173,11 +171,12 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                 const { error } = await supabase.from('extra_hours').insert([payload]);
                 if (error) throw error;
 
+                // 🔔 التنبيه للمانجر
                 await supabase.from('notifications').insert([{
                     agence_id: currentAgenceId,
                     agency: currentAgencyName,
                     staff_name: currentInstructor,
-                    message: `⏰ تسجيل ساعات إضافية للمترشح: ${finalStudentName} (${readableTime} - ${totalAmount} DH)`,
+                    message: `📝 ساعات إضافية نظري للمترشح: ${finalStudentName} (${readableTime} - ${totalAmount} DH)`,
                     type: 'EXTRA_HOURS',
                     category: 'extra_hours',
                     is_read: false
@@ -224,14 +223,14 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
             {/* 📝 الفورم */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-7 shadow-sm">
                 <div className="flex items-center gap-3 pb-5 mb-6 border-b border-slate-100">
-                    <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                        <Clock size={20} />
+                    <div className="w-10 h-10 bg-[#0F5A3E]/10 text-[#0F5A3E] rounded-xl flex items-center justify-center">
+                        <BookOpen size={20} />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-slate-800">
-                            {editingId ? 'تعديل الساعات الإضافية' : 'الساعات الإضافية'}
+                            {editingId ? 'تعديل الساعات الإضافية (النظري)' : 'الساعات الإضافية (النظري)'}
                         </h2>
-                        <p className="text-xs text-slate-400 font-normal">تسجيل حصص المترشحين الإضافية</p>
+                        <p className="text-xs text-slate-400 font-normal">تسجيل حصص النظري الإضافية للمترشحين</p>
                     </div>
                 </div>
 
@@ -243,7 +242,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                         <select
                             value={formData.student_name}
                             onChange={(e) => setFormData({ ...formData, student_name: e.target.value })}
-                            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all font-normal cursor-pointer"
+                            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 outline-none focus:border-[#0F5A3E] focus:bg-white transition-all font-normal cursor-pointer"
                         >
                             <option value="">— اختر اسم المترشح —</option>
                             <option value="EXTERNAL_CANDIDATE" className="text-orange-600 font-bold">👤 مترشح خارجي (ساعات إضافية)</option>
@@ -283,7 +282,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                 required
                                 value={formData.start_time}
                                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer font-normal"
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0F5A3E] focus:bg-white transition-all cursor-pointer font-normal"
                             />
                         </div>
 
@@ -296,7 +295,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                 required
                                 value={formData.end_time}
                                 onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer font-normal"
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0F5A3E] focus:bg-white transition-all cursor-pointer font-normal"
                             />
                         </div>
 
@@ -307,7 +306,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                             <select
                                 value={formData.hourly_rate}
                                 onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all font-normal cursor-pointer"
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0F5A3E] focus:bg-white transition-all font-normal cursor-pointer"
                             >
                                 <option value="90">90 DH</option>
                                 <option value="100">100 DH</option>
@@ -324,21 +323,21 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                             required
                             value={formData.log_date}
                             onChange={(e) => setFormData({ ...formData, log_date: e.target.value })}
-                            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all cursor-pointer font-normal"
+                            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3.5 py-3 text-sm text-slate-800 outline-none focus:border-[#0F5A3E] focus:bg-white transition-all cursor-pointer font-normal"
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-12 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 mt-2"
+                        className="w-full h-12 bg-[#0F5A3E] hover:bg-[#0c4630] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 mt-2"
                     >
                         {loading ? (
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
                             <>
                                 <Plus size={16} />
-                                <span>{editingId ? 'تحديث' : 'حفظ الساعات الإضافية'}</span>
+                                <span>{editingId ? 'تحديث الساعات الإضافية' : 'حفظ الساعات الإضافية'}</span>
                             </>
                         )}
                     </button>
@@ -348,7 +347,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
             {/* 📊 الجدول */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 px-1">
-                    <h3 className="text-sm font-bold text-slate-800">سجل الساعات الإضافية المسجلة</h3>
+                    <h3 className="text-sm font-bold text-slate-800">سجل الساعات الإضافية المسجلة (النظري)</h3>
                     <span className="text-xs text-slate-400 font-normal">عدد الحصص: {myLogs.length}</span>
                 </div>
 
@@ -381,13 +380,13 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                         <td className="p-3 font-medium text-slate-800">{item.student_name}</td>
                                         <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.start_time.slice(0, 5)}</td>
                                         <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.end_time.slice(0, 5)}</td>
-                                        <td className="p-3 font-semibold text-emerald-600">
+                                        <td className="p-3 font-semibold text-[#0F5A3E]">
                                             {displayStoredHours(item.total_hours)}
                                         </td>
                                         <td className="p-3 font-bold text-slate-900">
                                             {Math.round(Number(item.total_amount))} DH
                                         </td>
-
+                                        
                                         {/* 🏷️ عمود الحالة للعرض فقط (بدون أي أزرار تفاعلية) */}
                                         <td className="p-3 text-center">
                                             {item.status === 'paid' ? (
