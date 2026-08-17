@@ -47,6 +47,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
     const currentAgenceId = agenceId || selectedAgency?.id || null;
     const currentInstructor = instructorName || 'المدرب';
 
+    // 🚀 جلب الساعات الإضافية المسجلة الخاصة بهاد المدرب
     const fetchMyExtraHours = useCallback(async () => {
         setFetchingLogs(true);
         try {
@@ -80,14 +81,31 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
         fetchMyExtraHours();
     }, [fetchMyExtraHours]);
 
-    const calculateHours = (start: string, end: string): number => {
+    // ⏱️ دالة حساب الدقائق الإجمالية بين البداية والنهاية
+    const getDurationInMinutes = (start: string, end: string): number => {
         if (!start || !end) return 0;
         const [startH, startM] = start.split(':').map(Number);
         const [endH, endM] = end.split(':').map(Number);
         const startMins = startH * 60 + startM;
         const endMins = endH * 60 + endM;
-        const diffMins = endMins - startMins;
-        return diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
+        return endMins > startMins ? endMins - startMins : 0;
+    };
+
+    // 🎯 دالة تحويل الدقائق إلى تنسيق بشري مفهوم (مثلاً: 125 دقيقة -> 2h 05m)
+    const formatDuration = (totalMins: number): string => {
+        if (!totalMins || totalMins <= 0) return '0h 00m';
+        const hours = Math.floor(totalMins / 60);
+        const mins = totalMins % 60;
+        if (hours === 0) return `${mins}m`;
+        if (mins === 0) return `${hours}h`;
+        return `${hours}h ${mins < 10 ? '0' : ''}${mins}m`;
+    };
+
+    // تحويل رقم الساعات المخزن ف الداتابيز (العشري) إلى ساعات ودقائق واضحة
+    const displayStoredHours = (hoursDecimal: number): string => {
+        if (!hoursDecimal || hoursDecimal <= 0) return '0h 00m';
+        const totalMinutes = Math.round(Number(hoursDecimal) * 60);
+        return formatDuration(totalMinutes);
     };
 
     const handleEdit = (item: ExtraHourRecord) => {
@@ -96,9 +114,9 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
         setFormData({
             student_name: isExternal ? 'EXTERNAL_CANDIDATE' : item.student_name,
             external_name: isExternal ? item.student_name.replace('👤 خارجي: ', '') : '',
-            start_time: item.start_time,
-            end_time: item.end_time,
-            hourly_rate: String(item.hourly_rate),
+            start_time: item.start_time.slice(0, 5),
+            end_time: item.end_time.slice(0, 5),
+            hourly_rate: String(item.hourly_rate) === '90' ? '90' : '100',
             log_date: item.log_date,
             notes: item.notes || ''
         });
@@ -107,10 +125,9 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const totalHours = calculateHours(formData.start_time, formData.end_time);
-        const totalAmount = totalHours * (Number(formData.hourly_rate) || 0);
+        const durationMinutes = getDurationInMinutes(formData.start_time, formData.end_time);
 
-        if (totalHours <= 0) {
+        if (durationMinutes <= 0) {
             alert('⚠️ وقت النهاية يجب أن يكون أكبر من وقت البداية');
             return;
         }
@@ -119,6 +136,11 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
             alert('⚠️ المرجو اختيار المترشح أو تحديد مترشح خارجي');
             return;
         }
+
+        // الحساب العشري الدقيق للساعات والمبلغ
+        const totalHoursDecimal = Number((durationMinutes / 60).toFixed(4));
+        const totalAmount = Math.round(totalHoursDecimal * (Number(formData.hourly_rate) || 0));
+        const readableTime = formatDuration(durationMinutes);
 
         setLoading(true);
 
@@ -132,7 +154,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                 start_time: formData.start_time,
                 end_time: formData.end_time,
                 hourly_rate: Number(formData.hourly_rate),
-                total_hours: totalHours,
+                total_hours: totalHoursDecimal,
                 total_amount: totalAmount,
                 log_date: formData.log_date,
                 notes: formData.notes,
@@ -154,7 +176,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                     agence_id: currentAgenceId,
                     agency: currentAgencyName,
                     staff_name: currentInstructor,
-                    message: `⏰ تسجيل ساعات إضافية للمترشح: ${finalStudentName} (${totalHours} ساعة - ${totalAmount} DH)`,
+                    message: `⏰ تسجيل ساعات إضافية للمترشح: ${finalStudentName} (${readableTime} - ${totalAmount} DH)`,
                     type: 'EXTRA_HOURS',
                     category: 'extra_hours',
                     is_read: false
@@ -279,16 +301,16 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
 
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1.5">
-                                <Coins size={14} className="text-slate-400" /> ثمن الساعة (DH)
+                                <Coins size={14} className="text-slate-400" /> ثمن الساعة
                             </label>
-                            <input
-                                type="number"
-                                required
+                            <select
                                 value={formData.hourly_rate}
                                 onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                                placeholder="100"
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all font-normal"
-                            />
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all font-normal cursor-pointer"
+                            >
+                                <option value="90">90 DH</option>
+                                <option value="100">100 DH</option>
+                            </select>
                         </div>
                     </div>
 
@@ -322,7 +344,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                 </form>
             </div>
 
-            {/* 📊 الجدول */}
+            {/* 📊 الجدول المقاد بنظام الساعات والدقائق الواضح */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 px-1">
                     <h3 className="text-sm font-bold text-slate-800">سجل الساعات الإضافية المسجلة</h3>
@@ -336,7 +358,7 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                 <th className="p-3">المترشح</th>
                                 <th className="p-3">البداية</th>
                                 <th className="p-3">النهاية</th>
-                                <th className="p-3">الساعات</th>
+                                <th className="p-3">المدة</th>
                                 <th className="p-3">المبلغ</th>
                                 <th className="p-3">التاريخ</th>
                                 <th className="p-3 text-center">الإجراءات</th>
@@ -355,14 +377,19 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                 myLogs.map((item) => (
                                     <tr key={item.id} className="hover:bg-slate-50/40 transition-colors">
                                         <td className="p-3 font-medium text-slate-800">{item.student_name}</td>
-                                        <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.start_time}</td>
-                                        <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.end_time}</td>
-                                        <td className="p-3 font-semibold text-emerald-600">{item.total_hours} hr</td>
-                                        <td className="p-3 font-bold text-slate-900">{item.total_amount} DH</td>
+                                        <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.start_time.slice(0, 5)}</td>
+                                        <td className="p-3 text-slate-600 font-normal dir-ltr text-right">{item.end_time.slice(0, 5)}</td>
+                                        {/* ⏱️ العرض النظيف للساعات والدقائق */}
+                                        <td className="p-3 font-semibold text-emerald-600">
+                                            {displayStoredHours(item.total_hours)}
+                                        </td>
+                                        {/* 💰 المبلغ بدون كسور عائمة */}
+                                        <td className="p-3 font-bold text-slate-900">
+                                            {Math.round(Number(item.total_amount))} DH
+                                        </td>
                                         <td className="p-3 text-slate-400 font-normal">{item.log_date}</td>
                                         <td className="p-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                {/* ✏️ بوطونة التعديل بسيطة */}
                                                 <button
                                                     onClick={() => handleEdit(item)}
                                                     className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -370,7 +397,6 @@ export default function PracticalExtraHours({ selectedAgency, instructorName, ag
                                                 >
                                                     <Pencil size={14} />
                                                 </button>
-                                                {/* 🗑️ بوطونة الحذف */}
                                                 <button
                                                     onClick={() => handleDeleteLog(item.id)}
                                                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"

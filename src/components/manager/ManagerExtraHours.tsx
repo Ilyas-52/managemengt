@@ -52,6 +52,17 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
         fetchExtraHours();
     }, [fetchExtraHours]);
 
+    // ⏱️ دالة تحويل الساعات العشرية المخزنة إلى صيغة الساعات والدقائق (مثل 2h 05m)
+    const formatDuration = (hoursDecimal: number): string => {
+        if (!hoursDecimal || hoursDecimal <= 0) return '0h 00m';
+        const totalMinutes = Math.round(Number(hoursDecimal) * 60);
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        if (hours === 0) return `${mins}m`;
+        if (mins === 0) return `${hours}h`;
+        return `${hours}h ${mins < 10 ? '0' : ''}${mins}m`;
+    };
+
     // 🚀 حذف سجل
     const handleDelete = async (id: string) => {
         if (!confirm("هل أنت متأكد من حذف هذا التسجيل؟")) return;
@@ -99,7 +110,7 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
                     <div>
                         <span className="text-xs font-medium text-slate-400">إجمالي الساعات</span>
-                        <h3 className="text-2xl font-bold text-slate-800 mt-0.5">{totalHours.toFixed(1)} <span className="text-xs font-normal text-slate-400">ساعة</span></h3>
+                        <h3 className="text-2xl font-bold text-slate-800 mt-0.5">{formatDuration(totalHours)}</h3>
                     </div>
                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                         <Clock size={20} />
@@ -110,7 +121,7 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
                     <div>
                         <span className="text-xs font-medium text-slate-400">إجمالي المبالغ المالية</span>
-                        <h3 className="text-2xl font-bold text-slate-800 mt-0.5">{totalAmount} <span className="text-xs font-normal text-slate-400">DH</span></h3>
+                        <h3 className="text-2xl font-bold text-slate-800 mt-0.5">{Math.round(totalAmount)} <span className="text-xs font-normal text-slate-400">DH</span></h3>
                     </div>
                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                         <Coins size={20} />
@@ -180,7 +191,7 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                                 <th className="p-3.5">الوكالة</th>
                                 <th className="p-3.5">البداية</th>
                                 <th className="p-3.5">النهاية</th>
-                                <th className="p-3.5">الساعات</th>
+                                <th className="p-3.5">المدة</th>
                                 <th className="p-3.5">ثمن الساعة</th>
                                 <th className="p-3.5">المبلغ الإجمالي</th>
                                 <th className="p-3.5">التاريخ</th>
@@ -218,17 +229,17 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
 
                                         {/* وقت البداية */}
                                         <td className="p-3.5 text-slate-600 font-medium dir-ltr text-right">
-                                            {item.start_time}
+                                            {item.start_time.slice(0, 5)}
                                         </td>
 
                                         {/* وقت النهاية */}
                                         <td className="p-3.5 text-slate-600 font-medium dir-ltr text-right">
-                                            {item.end_time}
+                                            {item.end_time.slice(0, 5)}
                                         </td>
 
-                                        {/* مجموع ساعات الحصة */}
+                                        {/* مجموع ساعات الحصة بصيغة واضحة */}
                                         <td className="p-3.5 font-semibold text-emerald-600">
-                                            {item.total_hours} hr
+                                            {formatDuration(item.total_hours)}
                                         </td>
 
                                         {/* ثمن الساعة */}
@@ -236,9 +247,9 @@ export default function ManagerExtraHours({ selectedAgency }: Props) {
                                             {item.hourly_rate} DH
                                         </td>
 
-                                        {/* المجموع المالي للحصة */}
+                                        {/* المجموع المالي للحصة بدون كسور */}
                                         <td className="p-3.5 font-bold text-slate-900">
-                                            {item.total_amount} DH
+                                            {Math.round(Number(item.total_amount))} DH
                                         </td>
 
                                         {/* التاريخ */}
