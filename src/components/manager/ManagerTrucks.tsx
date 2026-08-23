@@ -22,10 +22,9 @@ interface TruckFormData {
     totalPrice: string | number;
     paidTimbreIn: number;
     paidMedicalIn: number;
-    // ✅ المسمار الجديد: الملاحظات
     notes: string;
-    t1: string | number; t2: string | number; t3: string | number; t4: string | number; t5: string | number;
-    t1_date: string; t2_date: string; t3_date: string; t4_date: string; t5_date: string;
+    t1: string | number; t2: string | number; t3: string | number; t4: string | number; t5: string | number; t6: string | number;
+    t1_date: string; t2_date: string; t3_date: string; t4_date: string; t5_date: string; t6_date: string;
     [key: string]: string | number | boolean | undefined;
 }
 
@@ -163,7 +162,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
         try {
             const rows = targetStudents.map((s, index) => {
                 const name = `${s.first_name || ''} ${s.last_name || ''}`;
-                const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
+                const paid = [1, 2, 3, 4, 5, 6].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                 const rest = (Number(s.total_price) || 0) - paid;
                 
                 let isWinner = false;
@@ -290,7 +289,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
     // 📊 حساب الحصيلة
     const stats = students.reduce((acc, s) => {
         const total = Number(s.total_price) || 0;
-        const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
+        const paid = [1, 2, 3, 4, 5, 6].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
         acc.exp += total; acc.coll += paid; acc.rem += (total - paid);
         return acc;
     }, { exp: 0, coll: 0, rem: 0 });
@@ -625,7 +624,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
             {/* 📱 نسخة التليفون: Cards ناضيين */}
             <div className="grid grid-cols-1 gap-4 sm:hidden animate-in slide-in-from-bottom-4 duration-1000">
                 {activeStudentsOnly.map(s => {
-                    const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
+                    const paid = [1, 2, 3, 4, 5, 6].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                     const rest = (s.total_price || 0) - paid;
 
                     return (
@@ -698,8 +697,8 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                             )}
 
                             {/* 💳 الدفعات (T1-T5) */}
-                            <div className="grid grid-cols-5 gap-1.5">
-                                {[1, 2, 3, 4, 5].map(n => {
+                            <div className="grid grid-cols-6 gap-1.5">
+                                {[1, 2, 3, 4, 5, 6].map(n => {
                                     const amount = s[`t${n}`];
                                     const dateRaw = s[`t${n}_date`];
                                     const isPaid = Number(amount) > 0;
@@ -787,7 +786,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                                 {/* 🏦 الوكالة */}
                                 <th className="text-center font-black w-[130px]">الوكالة</th>
                                 <th className="text-center font-black">الثمن الكلي</th>
-                                <th className="text-center font-black">الدفعات (T1-T5)</th>
+                                <th className="text-center font-black">الدفعات (T1-T6)</th>
                                 <th className="text-center w-[80px] font-black">TB</th>
                                 <th className="text-center w-[80px] font-black">VM</th>
                                 <th className="text-center font-black">التواريخ</th>
@@ -798,7 +797,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
                             {fetching ? (
                                 <tr><td colSpan={8} className="p-20 text-center animate-pulse font-black text-slate-300">جاري جلب البيانات...</td></tr>
                             ) : activeStudentsOnly.map(s => {
-                                const paid = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
+                                const paid = [1, 2, 3, 4, 5, 6].reduce((sum, n) => sum + (Number(s[`t${n}`]) || 0), 0);
                                 const rest = (s.total_price || 0) - paid;
                                 return (
                                     <tr key={s.id} className="hover:bg-slate-50/50 transition-all group cursor-pointer">
@@ -868,7 +867,7 @@ export default function ManagerTrucks({ selectedAgency, viewMode = 'registration
 
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center gap-2">
-                                                {[1, 2, 3, 4, 5].map(n => {
+                                                {[1, 2, 3, 4, 5, 6].map(n => {
                                                     const amount = s[`t${n}`];
                                                     const dateRaw = s[`t${n}_date`]; // التاريخ اللي جاي من Supabase
 

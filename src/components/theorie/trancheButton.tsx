@@ -66,13 +66,15 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
         const p3 = isBOnly ? getValidTrancheAmount(s, 't3_date', 'tranche_3') : getValidTrancheAmount(s, 't3_date', 't3');
         const p4 = isBOnly ? getValidTrancheAmount(s, 't4_date', 'tranche_4') : getValidTrancheAmount(s, 't4_date', 't4');
         const p5 = isBOnly ? getValidTrancheAmount(s, 't5_date', 'tranche_5') : getValidTrancheAmount(s, 't5_date', 't5');
+        const p6 = isBOnly ? getValidTrancheAmount(s, 't6_date', 'tranche_6') : getValidTrancheAmount(s, 't6_date', 't6');
+
         
-        const weeklyTotal = p1 + p2 + p3 + p4 + p5;
+        const weeklyTotal = p1 + p2 + p3 + p4 + p5 + p6;
 
         return {
           fullName: `${s.first_name || ''} ${s.last_name || ''}`,
           licenseType: sType,
-          p1, p2, p3, p4, p5,
+          p1, p2, p3, p4, p5,p6,
           weeklyTotal
         };
       }).filter(item => item.weeklyTotal > 0);
@@ -97,6 +99,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T3</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T4</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T5</th> 
+               <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T6</th> 
                 <th style="padding: 8px; border: 1px solid #ddd; background-color: #059669; text-align: center;">المجموع</th>
               </tr>
             </thead>
@@ -109,6 +112,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p3 > 0 ? item.p3 : '-'}</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p4 > 0 ? item.p4 : '-'}</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p5 > 0 ? item.p5 : '-'}</td> 
+                  <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p6 > 0 ? item.p6 : '-'}</td> 
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #059669;">${item.weeklyTotal} DH</td>
                 </tr>
               `).join('') : `<tr><td colspan="7" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">لا توجد مداخيل مسجلة لصنف السيارات (B) خلال هذا الأسبوع.</td></tr>`}
@@ -116,7 +120,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
             <tfoot>
                <tr style="background-color: #f8fafc; font-weight: bold;">
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">إجمالي الأسبوع (Permis B)</td>
-                  <td colspan="5" style="border: 1px solid #ddd;"></td> 
+                  <td colspan="6" style="border: 1px solid #ddd;"></td> 
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #059669; font-size: 14px;">
                       ${filteredIncomes.reduce((acc, item) => acc + item.weeklyTotal, 0)} DH
                   </td>
@@ -140,6 +144,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T3</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T4</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T5</th> 
+               <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">T6</th> 
                 <th style="padding: 8px; border: 1px solid #ddd; background-color: #059669; text-align: center;">المجموع</th>
               </tr>
             </thead>
@@ -154,6 +159,8 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p3 > 0 ? item.p3 : '-'}</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p4 > 0 ? item.p4 : '-'}</td>
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p5 > 0 ? item.p5 : '-'}</td> 
+                 <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">${item.p6 > 0 ? item.p6 : '-'}</td> 
+
                   <td style="padding: 8px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #059669;">${item.weeklyTotal} DH</td>
                 </tr>
               `).join('') : `<tr><td colspan="7" style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">لا توجد مداخيل مسجلة لهذه الأصناف خلال هذا الأسبوع.</td></tr>`}
@@ -161,7 +168,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
             <tfoot>
                <tr style="background-color: #f8fafc; font-weight: bold;">
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">إجمالي المداخيل الكلية للأصناف الأخرى</td>
-                  <td colspan="5" style="border: 1px solid #ddd;"></td> 
+                  <td colspan="6" style="border: 1px solid #ddd;"></td> 
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #059669; font-size: 14px;">
                       ${filteredIncomes.reduce((acc, item) => acc + item.weeklyTotal, 0)} DH
                   </td>

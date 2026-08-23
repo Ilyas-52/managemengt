@@ -14,21 +14,25 @@ export interface FormData {
     t3: string | number;
     t4: string | number;
     t5: string | number;
+    t6: string | number;
     t1_date?: string | null;
     t2_date?: string | null;
     t3_date?: string | null;
     t4_date?: string | null;
     t5_date?: string | null;
+    t6_date?: string | null;
     t1_timbre: number;
     t2_timbre: number;
     t3_timbre: number;
     t4_timbre: number;
     t5_timbre: number;
+    t6_timbre: number;
     t1_medical: string;
     t2_medical: string;
     t3_medical: string;
     t4_medical: string;
     t5_medical: string;
+    t6_medical: string;
     licenseType?: string;
     trainingLocation?: string;
     paidTimbreIn?: number;
@@ -64,7 +68,7 @@ export default function TheorieForm({
         setFormData((prev) => {
             const newData = { ...prev, [key]: value };
 
-            if (['t1', 't2', 't3', 't4', 't5'].includes(key) && value !== '' && !newData[`${key}_date`]) {
+            if (['t1', 't2', 't3', 't4', 't5', 't6'].includes(key) && value !== '' && !newData[`${key}_date`]) {
                 newData[`${key}_date`] = new Date().toISOString().split('T')[0];
             }
 
@@ -85,7 +89,7 @@ export default function TheorieForm({
     const currentRest = (Number(formData.totalPrice) || 0) - (
         (Number(formData.t1) || 0) + (Number(formData.t2) || 0) +
         (Number(formData.t3) || 0) + (Number(formData.t4) || 0) +
-        (Number(formData.t5) || 0)
+        (Number(formData.t5) || 0) + (Number(formData.t6) || 0)
     );
 
     return (
@@ -185,8 +189,8 @@ export default function TheorieForm({
                         <div className={`px-6 py-2 rounded-full border-2 text-[11px] font-black ${currentRest === 0 ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'}`}>الباقي: {currentRest} DH</div>
                     )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
-                    {[1, 2, 3, 4, 5].map(n => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-6">
+                    {[1, 2, 3, 4, 5, 6].map(n => (
                         <div key={n} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 space-y-4 text-center relative overflow-hidden">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">الدفعة {n}</span>
 
@@ -216,7 +220,6 @@ export default function TheorieForm({
                                     <div className="flex flex-col gap-1">
                                         <label className="text-[9px] font-bold text-slate-400">التمبر (Tb)</label>
                                         <select
-                                            // 🚀 ربط كل سيلكت بالخانة الخاصة بالدفعة (t1_timbre, t2_timbre...)
                                             value={formData[`t${n}_timbre`] || 0}
                                             onChange={(e) => {
                                                 const val = Number(e.target.value);
@@ -284,7 +287,7 @@ export default function TheorieForm({
                         <span className="font-black text-xl">!</span>
                     </div>
                     <div>
-                        <h2 className="text-lg text-amber-900 font-black tracking-tight"> ملاحضات  </h2>
+                        <h2 className="text-lg text-amber-900 font-black tracking-tight"> ملاحضات </h2>
                     </div>
                 </div>
 

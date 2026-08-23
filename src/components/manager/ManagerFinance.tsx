@@ -32,7 +32,7 @@ export default function ManagerFinance({
     };
 
     const getMedicalCheckDate = (s: Student, doctorName: string) => {
-        for (let n = 1; n <= 5; n++) {
+        for (let n = 1; n <= 6; n++) {
             const val = s[`t${n}_medical_paid`];
             if (matchDoctor(val, doctorName)) {
                 const dateVal = s[`t${n}_date`];
@@ -57,7 +57,7 @@ export default function ManagerFinance({
     const getDoctorName = (s: Student) => {
         const isB = !s.license_type || s.license_type === 'B' || s.licenseType === 'B';
         if (!isB) return null;
-        for (let n = 1; n <= 5; n++) {
+        for (let n = 1; n <= 6; n++) {
             const val = s[`t${n}_medical_paid`];
             if (typeof val === 'string' && val.trim() !== '') {
                 return val;
@@ -80,7 +80,8 @@ export default function ManagerFinance({
                 matchDoctor(s.t2_medical_paid, doctorName) ||
                 matchDoctor(s.t3_medical_paid, doctorName) ||
                 matchDoctor(s.t4_medical_paid, doctorName) ||
-                matchDoctor(s.t5_medical_paid, doctorName);
+                matchDoctor(s.t5_medical_paid, doctorName) ||
+                matchDoctor(s.t6_medical_paid, doctorName);
         });
 
         const rows = matchingStudents.map((s, index) => {
@@ -194,7 +195,7 @@ export default function ManagerFinance({
 
         const rows = targetStudents.map((s, index) => {
             const name = `${s.first_name} ${s.last_name}`;
-            const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
+            const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0) + (s.tranche_6 || 0);
             const rest = (s.total_price || 0) - paid;
 
             // 🎯 جلب النتيجة من سيستم الامتحانات
@@ -381,11 +382,11 @@ export default function ManagerFinance({
             {/* 📱 نسخة التليفون: Cards (معدلة بـ تواريخ الدفعات) */}
             <div className="grid grid-cols-1 gap-6 sm:hidden" dir="rtl">
                 {activeStudentsOnly.map(s => {
-                    const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
+                    const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0) + (s.tranche_6 || 0);
                     const rest = (s.total_price || 0) - paid;
                     const hasExam = s.exam_date && s.exam_date !== '';
-                    const totalTimbre = (s.t1_timbre_amount || 0) + (s.t2_timbre_amount || 0) + (s.t3_timbre_amount || 0) + (s.t4_timbre_amount || 0) + (s.t5_timbre_amount || 0);
-                    const isMedicalPaid = s.t1_medical_paid || s.t2_medical_paid || s.t3_medical_paid || s.t4_medical_paid || s.t5_medical_paid;
+                    const totalTimbre = (s.t1_timbre_amount || 0) + (s.t2_timbre_amount || 0) + (s.t3_timbre_amount || 0) + (s.t4_timbre_amount || 0) + (s.t5_timbre_amount || 0) + (s.t6_timbre_amount || 0);
+                    const isMedicalPaid = s.t1_medical_paid || s.t2_medical_paid || s.t3_medical_paid || s.t4_medical_paid || s.t5_medical_paid || s.t5_medical_paid;
 
                     return (
                         <div key={s.id} className="bg-white border-2 border-slate-900 rounded-[35px] p-6 shadow-sm space-y-4 text-right">
@@ -435,7 +436,7 @@ export default function ManagerFinance({
                             </div>
 
                             <div className="grid grid-cols-5 gap-1.5">
-                                {[1, 2, 3, 4, 5].map(n => {
+                                {[1, 2, 3, 4, 5, 6].map(n => {
                                     const trancheAmount = s[`tranche_${n}`] || 0;
                                     const trancheDate = s[`t${n}_date`];
                                     const timbreInThisTranche = s[`t${n}_timbre_amount`] || 0;
@@ -490,7 +491,7 @@ export default function ManagerFinance({
                                     المرشح / تاريخ التسجيل
                                 </th>
                                 <th className="text-center p-4">الثمن الكلي</th>
-                                <th className="text-center p-4">الدفعات (T1-T5)</th>
+                                <th className="text-center p-4">الدفعات (T1-T6)</th>
 
                                 {/* 🚀 المسمار: العمود الجديد لتواريخ الدفعات */}
                                 <th className="text-center p-4 w-[150px] bg-slate-50/50">تواريخ الدفعات</th>
@@ -503,11 +504,11 @@ export default function ManagerFinance({
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {activeStudentsOnly.map(s => {
-                                const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0);
+                                const paid = (s.tranche_1 || 0) + (s.tranche_2 || 0) + (s.tranche_3 || 0) + (s.tranche_4 || 0) + (s.tranche_5 || 0) + (s.tranche_6 || 0);
                                 const rest = (s.total_price || 0) - paid;
                                 const needsWarning = s.exam_date && rest > 0;
-                                const totalTimbre = (s.t1_timbre_amount || 0) + (s.t2_timbre_amount || 0) + (s.t3_timbre_amount || 0) + (s.t4_timbre_amount || 0) + (s.t5_timbre_amount || 0);
-                                const isMedicalPaid = s.t1_medical_paid || s.t2_medical_paid || s.t3_medical_paid || s.t4_medical_paid || s.t5_medical_paid;
+                                const totalTimbre = (s.t1_timbre_amount || 0) + (s.t2_timbre_amount || 0) + (s.t3_timbre_amount || 0) + (s.t4_timbre_amount || 0) + (s.t5_timbre_amount || 0) + (s.t6_timbre_amount || 0);
+                                const isMedicalPaid = s.t1_medical_paid || s.t2_medical_paid || s.t3_medical_paid || s.t4_medical_paid || s.t5_medical_paid || s.t5_medical_paid;
 
                                 return (
                                     <tr key={s.id} className="hover:bg-slate-50/50 transition-all group">
@@ -522,7 +523,7 @@ export default function ManagerFinance({
                                         {/* الدفعات (بقات كيم كانت) */}
                                         <td className="p-4">
                                             <div className="flex justify-center gap-2">
-                                                {[1, 2, 3, 4, 5].map(n => {
+                                                {[1, 2, 3, 4, 5, 6].map(n => {
                                                     const trancheAmount = s[`tranche_${n}`] || 0;
                                                     const timbreInThisTranche = s[`t${n}_timbre_amount`] || 0;
                                                     const medicalInThisTranche = s[`t${n}_medical_paid`] || false;
@@ -559,7 +560,7 @@ export default function ManagerFinance({
                                         {/* 🚀 المسمار: العمود الجديد لتواريخ الدفعات */}
                                         <td className="p-4 bg-slate-50/30">
                                             <div className="flex flex-col gap-1.5 items-center">
-                                                {[1, 2, 3, 4, 5].map(n => {
+                                                {[1, 2, 3, 4, 5, 6].map(n => {
                                                     const tAmt = s[`tranche_${n}`] || 0;
                                                     const tDate = s[`t${n}_date`];
                                                     if (tAmt > 0 && tDate) {
@@ -642,7 +643,8 @@ export default function ManagerFinance({
                                         s.t2_medical_paid === doc ||
                                         s.t3_medical_paid === doc ||
                                         s.t4_medical_paid === doc ||
-                                        s.t5_medical_paid === doc;
+                                        s.t5_medical_paid === doc ||
+                                        s.t6_medical_paid === doc;
                                 }).length;
 
                                 return (
