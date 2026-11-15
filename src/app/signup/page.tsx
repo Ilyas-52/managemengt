@@ -31,7 +31,7 @@ const ACCESS_CONFIG: Record<string, { role: string, agence: string, full_name: s
 export default function SignUpPage() {
 
     //if (process.env.NODE_ENV !== 'development') {
-        notFound();
+       // notFound();
     //}
     const router = useRouter();
     const [email, setEmail] = useState('');
