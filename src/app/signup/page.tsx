@@ -25,7 +25,7 @@ const ACCESS_CONFIG: Record<string, { role: string, agence: string, full_name: s
     'PRAT-AZG-ISM': { role: 'instructor_practical', agence: 'Azghar', full_name: 'ismail' },
 
     // الماناجر العام
-    'MGR-GLOBAL-2026': { role: 'manager', agence: 'Boudinar', full_name: 'younes' },
+    'MGR-GLOBAL-2027': { role: 'manager', agence: 'Boudinar', full_name: 'younes' },
 };
 
 export default function SignUpPage() {
