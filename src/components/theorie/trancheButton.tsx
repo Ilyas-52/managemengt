@@ -168,7 +168,7 @@ export default function PdfButton({ students, agenceName = 'Boudinar', selectedD
             <tfoot>
                <tr style="background-color: #f8fafc; font-weight: bold;">
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">إجمالي المداخيل الكلية للأصناف الأخرى</td>
-                  <td colspan="6" style="border: 1px solid #ddd;"></td> 
+                  <td colspan="6g" style="border: 1px solid #ddd;"></td> 
                   <td style="padding: 10px; border: 1px solid #ddd; text-align: center; color: #059669; font-size: 14px;">
                       ${filteredIncomes.reduce((acc, item) => acc + item.weeklyTotal, 0)} DH
                   </td>
