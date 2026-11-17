@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 
 import { ScheduleData } from '@/types/dashboard';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface HamzaPlanningProps {
     schedule: ScheduleData;
@@ -15,6 +17,7 @@ interface HamzaPlanningProps {
     handleSmartReset: () => Promise<void>;
     setShowModal: (val: { day: string; type: string; index?: number } | null) => void;
     loading: boolean;
+    
 }
 
 export default function HamzaPlanning({
@@ -35,6 +38,18 @@ export default function HamzaPlanning({
         { id: 'thursday', label: 'الخميس' },
         { id: 'friday', label: 'الجمعة' }
     ];
+    const [instructorName, setInstructorName] = useState('');
+    const [agencyName, setAgencyName] = useState('');
+
+    useEffect(() => {
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+            if (user?.user_metadata?.full_name) setInstructorName(user.user_metadata.full_name);
+            if (user?.user_metadata?.agence_id) {
+                const { data } = await supabase.from('agencies').select('name').eq('id', user.user_metadata.agence_id).single();
+                if (data?.name) setAgencyName(data.name);
+            }
+        });
+    }, []);
     // 🖨️ دالة استخراج البرنامج PDF
     const handlePrintPlanning = () => {
         if (!schedule) {
@@ -42,32 +57,16 @@ export default function HamzaPlanning({
             return;
         }
 
-        const clean = (txt: string) => txt.replace(/تلاميذ|تلميذ/g, '').trim();
+        const weekDays = [
+            { key: 'monday', label: 'الإثنين' },
+            { key: 'tuesday', label: 'الثلاثاء' },
+            { key: 'wednesday', label: 'الأربعاء' },
+            { key: 'thursday', label: 'الخميس' },
+            { key: 'friday', label: 'الجمعة' }
+        ];
 
-        const formatTasks = (list: string[], isAbsent: boolean) => {
-            if (isAbsent) {
-                return `
-                <div class="absent-row" style="
-                    margin: 0; padding: 8px 4px; height: 100%; width: 100%; min-height: 45px; 
-                    display: flex; align-items: center; justify-content: center; 
-                    box-sizing: border-box; line-height: 1.2; font-size: 14px;
-                ">
-                    ⚠️ ${clean(list.join(' '))}
-                </div>`;
-            }
-
-            if (list.length === 0) return '---';
-
-            return `<div style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start; text-align: right; padding: 4px;">
-                ${list.map(name => {
-                    const fontSize = name.length > 15 ? '9px' : '11px';
-                    return `<span style="font-size: ${fontSize}; width: 48%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; font-weight: 800;">• ${name}</span>`;
-                }).join('')}
-            </div>`;
-        };
-
-        const rows = days.map(day => {
-            const dayData = schedule[day.id] || { morning: [], evening: [] };
+        const rows = weekDays.map(day => {
+            const dayData = schedule[day.key] || { morning: [], evening: [] };
             const morning = dayData.morning || [];
             const evening = dayData.evening || [];
 
@@ -76,6 +75,38 @@ export default function HamzaPlanning({
 
             const isMorningAbsent = morningText.includes('غياب') || morningText.includes('صنف A') || morningText.includes('عطلة');
             const isEveningAbsent = eveningText.includes('غياب') || eveningText.includes('صنف A') || eveningText.includes('عطلة');
+
+            const clean = (txt: string) => txt.replace(/تلاميذ|تلميذ/g, '').trim();
+
+            const formatTasks = (list: string[], isAbsent: boolean) => {
+                if (isAbsent) {
+                    return `
+                    <div class="absent-row" style="
+                        margin: 0; 
+                        padding: 8px 4px; 
+                        height: 100%; 
+                        width: 100%; 
+                        min-height: 45px; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        box-sizing: border-box;
+                        line-height: 1.2;
+                        font-size: 14px;
+                    ">
+                        ⚠️ ${clean(list.join(' '))}
+                    </div>`;
+                }
+
+                if (list.length === 0) return '---';
+
+                return `<div style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start; text-align: right; padding: 4px;">
+                    ${list.map(name => {
+                        const fontSize = name.length > 15 ? '9px' : '11px';
+                        return `<span style="font-size: ${fontSize}; width: 48%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; font-weight: 800;">• ${name}</span>`;
+                    }).join('')}
+                </div>`;
+            };
 
             return `
             <tr>
@@ -89,70 +120,119 @@ export default function HamzaPlanning({
             </tr>`;
         }).join('');
 
-        const oldIframe = document.getElementById('print-planning-iframe');
-        if (oldIframe) oldIframe.remove();
-
         const iframe = document.createElement('iframe');
-        iframe.id = 'print-planning-iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
+        iframe.style.display = 'none';
         document.body.appendChild(iframe);
-
         const printWindow = iframe.contentWindow;
         if (!printWindow) return;
 
-        printWindow.document.open();
         printWindow.document.write(`
-            <!DOCTYPE html>
-            <html dir="rtl" lang="ar">
+            <html dir="rtl">
             <head>
-                <meta charset="UTF-8" />
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
-                    @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+
+                    @page {
+                        size: A4 portrait;
+                        margin: 8mm 10mm 8mm 10mm;
+                    }
                     body { font-family: 'Tajawal', sans-serif; padding: 0; margin: 0; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                     .header { text-align: center; border: 4px solid #000; padding: 12px; margin-bottom: 15px; }
                     table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px; }
                     th, td { border: 2px solid #000; padding: 8px 5px; text-align: center; font-weight: 700; font-size: 13px; }
-                    th { background: #f2f2f2 !important; }
+                    th { background: #f2f2f2 !important; -webkit-print-color-adjust: exact !important; }
                     .day-cell { background: #f9f9f9 !important; width: 75px; font-weight: 900; }
-                    .absent-row { background-color: #ff0000 !important; color: #ffffff !important; font-size: 14px !important; font-weight: 900 !important; }
-                    .notice-box, .info-box { background-color: #b8dc44 !important; border: 3px solid #a3c437; border-radius: 20px; padding: 12px 15px; margin-top: 12px; text-align: center; page-break-inside: avoid; }
-                    .notice-text, .info-text { color: #0f172a; font-size: 14px; font-weight: 900; line-height: 1.5; margin: 0; }
-                    .notice-text { margin-bottom: 8px; }
-                    .phone-container { display: inline-block; border-bottom: 4px solid #dc2626; padding-bottom: 1px; margin-bottom: 3px; }
-                    .phone-number { color: #dc2626; font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+                    .absent-row { 
+                        background-color: #ff0000 !important; 
+                        color: #ffffff !important; 
+                        font-size: 14px !important; 
+                        font-weight: 900 !important; 
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notice-box {
+                        background-color: #b8dc44 !important;
+                        border: 3px solid #a3c437;
+                        border-radius: 20px;
+                        padding: 12px 15px;
+                        margin-top: 15px;
+                        text-align: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        page-break-inside: avoid;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .notice-text {
+                        color: #0f172a;
+                        font-size: 14px;
+                        font-weight: 900;
+                        line-height: 1.5;
+                        margin: 0 0 8px 0;
+                    }
+                    .phone-container {
+                        display: inline-block;
+                        border-bottom: 4px solid #dc2626;
+                        padding-bottom: 1px;
+                        margin-bottom: 3px;
+                    }
+                    .phone-number {
+                        color: #dc2626;
+                        font-size: 22px;
+                        font-weight: 900;
+                        letter-spacing: 1px;
+                    }
+                    .info-box {
+                        background-color: #b8dc44 !important;
+                        border: 3px solid #a3c437;
+                        border-radius: 20px;
+                        padding: 12px 15px;
+                        margin-top: 12px;
+                        text-align: center;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                        page-break-inside: avoid;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .info-text {
+                        color: #0f172a;
+                        font-size: 14px;
+                        font-weight: 900;
+                        line-height: 1.5;
+                        margin: 0;
+                    }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>مـؤسـسـة يـونـس لـتـعـلـيـم الـسـيـاقـة</h1>
-                    <div style="font-size: 14px; font-weight: 900;">البرنامج الأسبوعي للحصص التطبيقية</div>
-                </div>
+                    <h1>مـؤسـسـة ${agencyName || 'بـوديـنـار'}</h1>
+                    <div style="font-size: 14px; font-weight: 900;"> البرنامج الأسبوعي للحصص مع الأستاذ: ${instructorName}</div>
+                </div>           </div>
+
                 <table>
                     <thead><tr><th class="day-cell">اليوم</th><th>الصباح</th><th>المساء</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
+
                 <div class="notice-box">
-                    <p class="notice-text">لأي استفسار أو طرح أي تساؤل، المرجو إرسال رسالة صوتية أو كتابية إلى صاحب المؤسسة على الرقم:</p>
-                    <div class="phone-container"><span class="phone-number">0688774026</span></div>
+                    <p class="notice-text">
+                        لأي استفسار أو طرح أي تساؤل،المرجو إرسال رسالة صوتية أو كتابية إلى صاحب المؤسسة على الرقم:
+                    </p>
+                    <div class="phone-container">
+                        <span class="phone-number">0688774026</span>
+                    </div>
                 </div>
+
                 <div class="info-box">
-                    <p class="info-text">استعمال الزمن ينظم الحصص التطبيقية (السياقة) فقط. أما الحصص النظرية (الكود) فهي متاحة للجميع في أي وقت.</p>
+                    <p class="info-text">
+                        استعمال الزمن ينظم الحصص التطبيقية (السياقة) فقط. اما الحصص النظرية(الكود) فهي متاحة للجميع في اي وقت.
+                    </p>
                 </div>
+
+                <script>window.onload = () => { setTimeout(() => { window.print(); }, 500); };</script>
             </body>
             </html>
         `);
         printWindow.document.close();
-
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 600);
     };
 
     return (
@@ -167,42 +247,42 @@ export default function HamzaPlanning({
                     <span className="text-[11px] uppercase tracking-[0.2em]">{isEditing ? 'وضـع الـتـعـديـل' : 'وضـع الـنـشـر'}</span>
                 </div>
 
-                <div className="flex gap-4">
-                    {!isEditing ? (
-                        <>
-                        <button
-                                onClick={handlePrintPlanning}
-                                className="bg-emerald-600 text-white px-7 h-14 rounded-2xl text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                            >
-                                <Printer size={16} /> استخراج البرنامج (PDF)
-                            </button>
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="bg-slate-900 text-white px-8 h-14 rounded-2xl text-xs font-black hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg active:scale-95"
-                            >
-                                <Calendar size={16} /> تعديل البرنامج
-                            </button>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
+    {!isEditing ? (
+        <>
+            <button
+                onClick={handlePrintPlanning}
+                className="flex-1 sm:flex-none justify-center bg-emerald-600 text-white px-4 sm:px-6 h-12 sm:h-14 rounded-2xl text-[11px] sm:text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+            >
+                <Printer size={16} /> استخراج (PDF)
+            </button>
 
-                            {/* ✅ تبديل السمية لـ مسح البرنامج */}
-                            <button
-                                onClick={handleSmartReset}
-                                className="bg-slate-900 text-white px-6 h-14 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-all duration-300 hover:bg-red-500 hover:scale-105 active:scale-95"
-                            >
-                                <Trash2 size={16} className="text-white" />
-                                مسح البرنامج
-                            </button>
-                        </>
-                    ) : (
-                        <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="bg-slate-900 text-white px-12 h-14 rounded-2xl text-xs font-black shadow-xl hover:bg-emerald-600 disabled:opacity-50 transition-all flex items-center gap-3 active:scale-95"
-                        >
-                            {loading ? <Activity className="animate-spin" size={18} /> : <Save size={18} />}
-                            {loading ? 'جاري الإرسال للرئيس...' : 'حفظ ونشر الآن 🛰️'}
-                        </button>
-                    )}
-                </div>
+            <button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 sm:flex-none justify-center bg-slate-900 text-white px-4 sm:px-8 h-12 sm:h-14 rounded-2xl text-[11px] sm:text-xs font-black hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+            >
+                <Calendar size={16} /> تعديل البرنامج
+            </button>
+
+            <button
+                onClick={handleSmartReset}
+                className="w-full sm:w-auto justify-center bg-slate-900 text-white px-4 sm:px-6 h-12 sm:h-14 rounded-2xl text-[11px] sm:text-xs font-black flex items-center gap-2 shadow-lg transition-all duration-300 hover:bg-red-500 active:scale-95"
+            >
+                <Trash2 size={16} className="text-white" />
+                مسح البرنامج
+            </button>
+        </>
+    ) : (
+        <button
+            onClick={handleSave}
+            disabled={loading}
+            className="w-full sm:w-auto justify-center bg-slate-900 text-white px-8 sm:px-12 h-14 rounded-2xl text-xs font-black shadow-xl hover:bg-emerald-600 disabled:opacity-50 transition-all flex items-center gap-3 active:scale-95"
+        >
+            {loading ? <Activity className="animate-spin" size={18} /> : <Save size={18} />}
+            {loading ? 'جاري الإرسال للرئيس...' : 'حفظ ونشر الآن 🛰️'}
+        </button>
+    )}
+</div>
             </div>
 
             {/* ── GRID DAYS ── */}
