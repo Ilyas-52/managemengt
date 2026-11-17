@@ -1,7 +1,7 @@
 'use client';
 
 import {
-    Calendar, Plus, Clock, Activity, Save, ShieldCheck, X, Unlock, Lock, Trash2
+    Calendar, Plus, Clock, Activity, Save, ShieldCheck, X, Unlock, Lock, Trash2, Printer
 } from 'lucide-react';
 
 import { ScheduleData } from '@/types/dashboard';
@@ -35,6 +35,125 @@ export default function HamzaPlanning({
         { id: 'thursday', label: 'الخميس' },
         { id: 'friday', label: 'الجمعة' }
     ];
+    // 🖨️ دالة استخراج البرنامج PDF
+    const handlePrintPlanning = () => {
+        if (!schedule) {
+            alert("البرنامج فارغ حالياً.");
+            return;
+        }
+
+        const clean = (txt: string) => txt.replace(/تلاميذ|تلميذ/g, '').trim();
+
+        const formatTasks = (list: string[], isAbsent: boolean) => {
+            if (isAbsent) {
+                return `
+                <div class="absent-row" style="
+                    margin: 0; padding: 8px 4px; height: 100%; width: 100%; min-height: 45px; 
+                    display: flex; align-items: center; justify-content: center; 
+                    box-sizing: border-box; line-height: 1.2; font-size: 14px;
+                ">
+                    ⚠️ ${clean(list.join(' '))}
+                </div>`;
+            }
+
+            if (list.length === 0) return '---';
+
+            return `<div style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start; text-align: right; padding: 4px;">
+                ${list.map(name => {
+                    const fontSize = name.length > 15 ? '9px' : '11px';
+                    return `<span style="font-size: ${fontSize}; width: 48%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; font-weight: 800;">• ${name}</span>`;
+                }).join('')}
+            </div>`;
+        };
+
+        const rows = days.map(day => {
+            const dayData = schedule[day.id] || { morning: [], evening: [] };
+            const morning = dayData.morning || [];
+            const evening = dayData.evening || [];
+
+            const morningText = morning.join(' ');
+            const eveningText = evening.join(' ');
+
+            const isMorningAbsent = morningText.includes('غياب') || morningText.includes('صنف A') || morningText.includes('عطلة');
+            const isEveningAbsent = eveningText.includes('غياب') || eveningText.includes('صنف A') || eveningText.includes('عطلة');
+
+            return `
+            <tr>
+                <td class="day-cell">${day.label}</td>
+                <td class="task-cell" style="${isMorningAbsent ? 'padding: 0;' : ''}">
+                    ${formatTasks(morning, isMorningAbsent)}
+                </td>
+                <td class="task-cell" style="${isEveningAbsent ? 'padding: 0;' : ''}">
+                    ${formatTasks(evening, isEveningAbsent)}
+                </td>
+            </tr>`;
+        }).join('');
+
+        const oldIframe = document.getElementById('print-planning-iframe');
+        if (oldIframe) oldIframe.remove();
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'print-planning-iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+
+        const printWindow = iframe.contentWindow;
+        if (!printWindow) return;
+
+        printWindow.document.open();
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8" />
+                <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+                    @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+                    body { font-family: 'Tajawal', sans-serif; padding: 0; margin: 0; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .header { text-align: center; border: 4px solid #000; padding: 12px; margin-bottom: 15px; }
+                    table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 20px; }
+                    th, td { border: 2px solid #000; padding: 8px 5px; text-align: center; font-weight: 700; font-size: 13px; }
+                    th { background: #f2f2f2 !important; }
+                    .day-cell { background: #f9f9f9 !important; width: 75px; font-weight: 900; }
+                    .absent-row { background-color: #ff0000 !important; color: #ffffff !important; font-size: 14px !important; font-weight: 900 !important; }
+                    .notice-box, .info-box { background-color: #b8dc44 !important; border: 3px solid #a3c437; border-radius: 20px; padding: 12px 15px; margin-top: 12px; text-align: center; page-break-inside: avoid; }
+                    .notice-text, .info-text { color: #0f172a; font-size: 14px; font-weight: 900; line-height: 1.5; margin: 0; }
+                    .notice-text { margin-bottom: 8px; }
+                    .phone-container { display: inline-block; border-bottom: 4px solid #dc2626; padding-bottom: 1px; margin-bottom: 3px; }
+                    .phone-number { color: #dc2626; font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>مـؤسـسـة يـونـس لـتـعـلـيـم الـسـيـاقـة</h1>
+                    <div style="font-size: 14px; font-weight: 900;">البرنامج الأسبوعي للحصص التطبيقية</div>
+                </div>
+                <table>
+                    <thead><tr><th class="day-cell">اليوم</th><th>الصباح</th><th>المساء</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <div class="notice-box">
+                    <p class="notice-text">لأي استفسار أو طرح أي تساؤل، المرجو إرسال رسالة صوتية أو كتابية إلى صاحب المؤسسة على الرقم:</p>
+                    <div class="phone-container"><span class="phone-number">0688774026</span></div>
+                </div>
+                <div class="info-box">
+                    <p class="info-text">استعمال الزمن ينظم الحصص التطبيقية (السياقة) فقط. أما الحصص النظرية (الكود) فهي متاحة للجميع في أي وقت.</p>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 600);
+    };
 
     return (
         <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -51,6 +170,12 @@ export default function HamzaPlanning({
                 <div className="flex gap-4">
                     {!isEditing ? (
                         <>
+                        <button
+                                onClick={handlePrintPlanning}
+                                className="bg-emerald-600 text-white px-7 h-14 rounded-2xl text-xs font-black hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                            >
+                                <Printer size={16} /> استخراج البرنامج (PDF)
+                            </button>
                             <button
                                 onClick={() => setIsEditing(true)}
                                 className="bg-slate-900 text-white px-8 h-14 rounded-2xl text-xs font-black hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg active:scale-95"
