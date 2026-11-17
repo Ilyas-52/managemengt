@@ -637,84 +637,98 @@ export default function TheoryTerminal({ instructorName, agenceId, agenceName }:
     setLoading(true);
     isSubmitting.current = true;
 
-    const isHeavy = formData.licenseType && formData.licenseType !== 'B';
+    const isHeavy = Boolean(formData.licenseType && formData.licenseType !== 'B');
     const existingStudent = students.find(st => String(st.id) === String(selectedStudentId));
 
-    // Determine target table cleanly
-    const targetTable = selectedStudentId
+    // الجدول الأصلي الموجود فيه التلميذ حالياً
+    const sourceTable = selectedStudentId
       ? ((existingStudent?.license_type && existingStudent.license_type !== 'B') ? 'truck_students' : 'students')
-      : (isHeavy ? 'truck_students' : 'students');
+      : null;
 
-   const payload = targetTable === 'truck_students' ? {
-  first_name: formData.firstName,
-  last_name: formData.lastName,
-  agence_id: agenceId,
-  notes: formData.notes || '',
-  registration_date: formData.registrationDate,
-  exam_date: formData.examDate || null,
-  license_type: formData.licenseType,
-  training_location: formData.licenseType === 'A' ? 'YOUNESS' : formData.trainingLocation,
-  total_price: Number(formData.totalPrice),
-  paid_timbre_in: formData.paidTimbreIn || 0,
-  paid_medical_in: formData.paidMedicalIn || 0,
-  t1: Number(formData.t1) || 0,
-  t2: Number(formData.t2) || 0,
-  t3: Number(formData.t3) || 0,
-  t4: Number(formData.t4) || 0,
-  t5: Number(formData.t5) || 0,
-  t6: Number(formData.t6) || 0,
-  t1_date: formData.t1_date || null,
-  t2_date: formData.t2_date || null,
-  t3_date: formData.t3_date || null,
-  t4_date: formData.t4_date || null,
-  t5_date: formData.t5_date || null,
-  t6_date: formData.t6_date || null,
-  status: formData.status || 'active'
-} : {
-  first_name: formData.firstName,
-  last_name: formData.lastName,
-  agence_id: agenceId,
-  agency: agenceName, // Backward compatibility
-  total_price: Number(formData.totalPrice),
-  tranche_1: Number(formData.t1),
-  tranche_2: Number(formData.t2),
-  tranche_3: Number(formData.t3),
-  tranche_4: Number(formData.t4),
-  tranche_5: Number(formData.t5),
-  tranche_6: Number(formData.t6) || 0,
-  t1_date: formData.t1_date || null,
-  t2_date: formData.t2_date || null,
-  t3_date: formData.t3_date || null,
-  t4_date: formData.t4_date || null,
-  t5_date: formData.t5_date || null,
-  t6_date: formData.t6_date || null,
-  t1_timbre_amount: Number(formData.t1_timbre || 0),
-  t2_timbre_amount: Number(formData.t2_timbre || 0),
-  t3_timbre_amount: Number(formData.t3_timbre || 0),
-  t4_timbre_amount: Number(formData.t4_timbre || 0),
-  t5_timbre_amount: Number(formData.t5_timbre || 0),
-  t6_timbre_amount: Number(formData.t6_timbre || 0),
-  t1_medical_paid: formData.t1_medical || null,
-  t2_medical_paid: formData.t2_medical || null,
-  t3_medical_paid: formData.t3_medical || null,
-  t4_medical_paid: formData.t4_medical || null,
-  t5_medical_paid: formData.t5_medical || null,
-  t6_medical_paid: formData.t6_medical || null,
-  pratique_note: formData.pratiqueNote,
-  registration_date: formData.registrationDate,
-  exam_date: formData.examDate || null,
-  status: formData.status || 'active'
-};
+    // الجدول الجديد حسب الصنف المختار في الفورم
+    const destinationTable = isHeavy ? 'truck_students' : 'students';
+
+    const payload = destinationTable === 'truck_students' ? {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      agence_id: agenceId,
+      notes: formData.notes || formData.pratiqueNote || '',
+      registration_date: formData.registrationDate,
+      exam_date: formData.examDate || null,
+      license_type: formData.licenseType,
+      training_location: formData.licenseType === 'A' ? 'YOUNESS' : formData.trainingLocation,
+      total_price: Number(formData.totalPrice),
+      paid_timbre_in: formData.paidTimbreIn || 0,
+      paid_medical_in: formData.paidMedicalIn || 0,
+      t1: Number(formData.t1) || 0,
+      t2: Number(formData.t2) || 0,
+      t3: Number(formData.t3) || 0,
+      t4: Number(formData.t4) || 0,
+      t5: Number(formData.t5) || 0,
+      t6: Number(formData.t6) || 0,
+      t1_date: formData.t1_date || null,
+      t2_date: formData.t2_date || null,
+      t3_date: formData.t3_date || null,
+      t4_date: formData.t4_date || null,
+      t5_date: formData.t5_date || null,
+      t6_date: formData.t6_date || null,
+      status: formData.status || 'active'
+    } : {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      agence_id: agenceId,
+      agency: agenceName,
+      total_price: Number(formData.totalPrice),
+      tranche_1: Number(formData.t1) || 0,
+      tranche_2: Number(formData.t2) || 0,
+      tranche_3: Number(formData.t3) || 0,
+      tranche_4: Number(formData.t4) || 0,
+      tranche_5: Number(formData.t5) || 0,
+      tranche_6: Number(formData.t6) || 0,
+      t1_date: formData.t1_date || null,
+      t2_date: formData.t2_date || null,
+      t3_date: formData.t3_date || null,
+      t4_date: formData.t4_date || null,
+      t5_date: formData.t5_date || null,
+      t6_date: formData.t6_date || null,
+      t1_timbre_amount: Number(formData.t1_timbre || 0),
+      t2_timbre_amount: Number(formData.t2_timbre || 0),
+      t3_timbre_amount: Number(formData.t3_timbre || 0),
+      t4_timbre_amount: Number(formData.t4_timbre || 0),
+      t5_timbre_amount: Number(formData.t5_timbre || 0),
+      t6_timbre_amount: Number(formData.t6_timbre || 0),
+      t1_medical_paid: formData.t1_medical || null,
+      t2_medical_paid: formData.t2_medical || null,
+      t3_medical_paid: formData.t3_medical || null,
+      t4_medical_paid: formData.t4_medical || null,
+      t5_medical_paid: formData.t5_medical || null,
+      t6_medical_paid: formData.t6_medical || null,
+      pratique_note: formData.pratiqueNote || formData.notes || '',
+      registration_date: formData.registrationDate,
+      exam_date: formData.examDate || null,
+      status: formData.status || 'active'
+    };
 
     try {
-      const { error: dbError } = selectedStudentId
-        ? await supabase.from(targetTable).update(payload).eq('id', selectedStudentId)
-        : await supabase.from(targetTable).insert([payload]);
+      if (selectedStudentId && sourceTable && sourceTable !== destinationTable) {
+        // 🔄 تغيير الصنف تطلب الانتقال بين جدولين (مثلاً من B إلى A/C أو العكس)
+        const { error: insertError } = await supabase.from(destinationTable).insert([payload]);
+        if (insertError) throw insertError;
 
-      if (dbError) throw dbError;
+        const { error: deleteError } = await supabase.from(sourceTable).delete().eq('id', selectedStudentId);
+        if (deleteError) throw deleteError;
+      } else if (selectedStudentId) {
+        // ✏️ تعديل عادي داخل نفس الجدول
+        const { error: updateError } = await supabase.from(destinationTable).update(payload).eq('id', selectedStudentId);
+        if (updateError) throw updateError;
+      } else {
+        // ➕ إضافة مترشح جديد
+        const { error: insertError } = await supabase.from(destinationTable).insert([payload]);
+        if (insertError) throw insertError;
+      }
 
-      let notifMsg = selectedStudentId
-        ? `📝 ${instructorName} عدل ملف المترشح: ${formData.firstName} ${formData.lastName}`
+      const notifMsg = selectedStudentId
+        ? `📝 ${instructorName} عدل ملف المترشح: ${formData.firstName} ${formData.lastName} (صنف ${formData.licenseType || 'B'})`
         : (isHeavy
           ? `${instructorName} سجل تلميذ صنف Permis ${formData.licenseType}`
           : `🆕 ${instructorName} سجل مترشح جديد: ${formData.firstName} ${formData.lastName}`);
